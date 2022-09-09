@@ -148,6 +148,18 @@ target_include_directories(rochpl
                            $<BUILD_INTERFACE:${HPL_MPI_DIR}/include>
                            $<BUILD_INTERFACE:${ROCM_PATH}/include/roctracer>)
 
+#
+if(NOT DEFINED MPI_C_INCLUDE_DIRS)
+  if(NOT DEFINED MPICH_DIR)
+    set(MPICH_DIR $ENV{MPICH_DIR})
+  endif()
+  set(MPI_C_INCLUDE_DIRS "${MPICH_DIR}/include")
+endif()
+message(STATUS "MPI C include dirs: ${MPI_C_INCLUDE_DIRS}")
+target_include_directories(rochpl PRIVATE ${MPI_C_INCLUDE_DIRS})
+
+target_include_directories(rochpl PRIVATE ${CNPY_INCLUDE_DIR})
+
 #HIP
 target_link_libraries(rochpl PRIVATE hip::host)
 
@@ -162,6 +174,7 @@ target_link_libraries(rochpl PRIVATE BLAS::BLAS)
 target_link_libraries(rochpl PRIVATE roc::rocblas)
 target_link_libraries(rochpl PRIVATE roc::roctracer)
 target_link_libraries(rochpl PRIVATE roc::roctx)
+target_link_libraries(rochpl PRIVATE ${CNPY_LIB})
 
 # Target properties
 set_target_properties(rochpl PROPERTIES VERSION ${rochpl_VERSION})

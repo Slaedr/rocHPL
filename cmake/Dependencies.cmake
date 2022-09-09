@@ -75,7 +75,7 @@ else()
 endif()
 
 # MPI
-set(MPI_HOME ${HPL_MPI_DIR})
+#set(MPI_HOME ${HPL_MPI_DIR})
 find_package(MPI REQUIRED)
 
 # Add some paths
@@ -150,3 +150,7 @@ include(ROCMInstallTargets)
 include(ROCMPackageConfigHelpers)
 include(ROCMInstallSymlinks)
 include(ROCMCheckTargetIds OPTIONAL)
+
+find_library(CNPY_LIB cnpy PATHS ${CNPY_DIR} ENV CNPY_DIR PATH_SUFFIXES lib REQUIRED)
+find_path(CNPY_INCLUDE_DIR cnpy.h PATHS ${CNPY_DIR} ENV CNPY_DIR PATH_SUFFIXES include REQUIRED)
+message(STATUS "Found cnpy library ${CNPY_LIB} and include path ${CNPY_INCLUDE_DIR}")
