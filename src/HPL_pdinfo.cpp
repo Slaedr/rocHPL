@@ -277,7 +277,10 @@ void HPL_pdinfo(int          ARGC,
                "-h  [ --help ]                     Produces this help "
                "message                 \n"
                "--version                          Prints the version "
-               "number                  \n";
+               "number                  \n"
+               "--matrix_dir                       Prefix of location of "
+               "matrix files (optional; if not specified, a random\n"
+               "matrix is generated.\n";
       }
       MPI_Barrier(MPI_COMM_WORLD);
       MPI_Finalize();
@@ -369,6 +372,10 @@ void HPL_pdinfo(int          ARGC,
     if(strcmp(ARGV[i], "-i") == 0 || strcmp(ARGV[i], "--input") == 0) {
       inputFileName = ARGV[i + 1];
       inputfile     = true;
+      i++;
+    }
+    if(strcmp(ARGV[i], "-m") == 0 || strcmp(ARGV[i], "--matrix_dir") == 0) {
+      TEST->matrix_dir = ARGV[i + 1];
       i++;
     }
   }

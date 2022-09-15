@@ -20,6 +20,8 @@
  * Include files
  * ---------------------------------------------------------------------
  */
+#include <string>
+
 #include "hpl_misc.hpp"
 #include "hpl_blas.hpp"
 #include "hpl_auxil.hpp"
@@ -45,6 +47,7 @@ typedef struct HPL_S_test {
   int    kpass; /* # of tests passed */
   int    kskip; /* # of tests skipped */
   int    ktest; /* total number of tests */
+  std::string matrix_dir;  //< Directory containing matrix files
 } HPL_T_test;
 
 /*

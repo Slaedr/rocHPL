@@ -108,10 +108,15 @@ void HPL_pdtest(HPL_T_test* TEST,
   MPI_Type_contiguous(NB + 4, MPI_DOUBLE, &PDFACT_ROW);
   MPI_Type_commit(&PDFACT_ROW);
 
-  /*
-   * generate matrix and right-hand-side, [ A | b ] which is N by N+1.
-   */
-  HPL_pdrandmat(GRID, N, N + 1, NB, mat.dA, mat.ld, HPL_ISEED);
+  if(TEST->matrix_dir.empty()) {
+      /*
+       * generate matrix and right-hand-side, [ A | b ] which is N by N+1.
+       */
+      HPL_pdrandmat(GRID, N, N + 1, NB, mat.dA, mat.ld, HPL_ISEED);
+  } else {
+      // Read matrix from files
+      HPL_pdreadmat(GRID, N, N+1, NB, TEST->matrix_dir, &mat);
+  }
 
   /*
    * Solve linear system
