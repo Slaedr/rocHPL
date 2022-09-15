@@ -110,8 +110,13 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
     std::string header;
     std::ifstream desc_stream(desc_file);
     std::getline(desc_stream, header);
-    int n_block_rows{-1}, n_block_cols{-1};
-    desc_stream >> n_block_rows >> n_block_cols;
+    int n_block_rows{-1}, n_block_cols{-1}, n_total_rows{}, n_rhs{};
+    desc_stream >> n_block_rows >> n_block_cols >> n_total_rows >> n_rhs;
+    if(grid->iam == 0) {
+        std::cout << "Matrix contains " << n_block_rows << ", " << n_block_cols
+            << " blocks; size = " << n_total_rows << ", num RHS = " << n_rhs
+            << std::endl;
+    }
     desc_stream.close();
     if(n_block_rows < grid->nprow) {
         throw std::runtime_error("Not enough block-rows!");
