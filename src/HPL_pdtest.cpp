@@ -317,7 +317,12 @@ void HPL_pdtest(HPL_T_test* TEST,
    * Check computation, re-generate [ A | b ], compute norm 1 and inf of A and
    * x, and norm inf of b - A x. Display residual checks.
    */
-  HPL_pdrandmat(GRID, N, N + 1, NB, mat.dA, mat.ld, HPL_ISEED);
+  //HPL_pdrandmat(GRID, N, N + 1, NB, mat.dA, mat.ld, HPL_ISEED);
+  if(TEST->matrix_dir.empty()) {
+      HPL_pdrandmat(GRID, N, N + 1, NB, mat.dA, mat.ld, HPL_ISEED);
+  } else {
+      HPL_pdreadmat(GRID, N, N+1, NB, TEST->matrix_dir, &mat);
+  }
 
   Anorm1 = HPL_pdlange(GRID, HPL_NORM_1, N, N, NB, mat.dA, mat.ld);
   AnormI = HPL_pdlange(GRID, HPL_NORM_I, N, N, NB, mat.dA, mat.ld);

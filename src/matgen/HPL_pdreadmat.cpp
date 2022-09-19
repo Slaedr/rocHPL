@@ -5,14 +5,16 @@
 #include "hpl.hpp"
 #include "hpl_exceptions.hpp"
 
-template <typename scalar>
+
+template <typename scalar, typename file_scalar>
 void read_one_block(const int ibrow, const int jbcol, const cnpy::NpyArray& arr,
-    const int block_size, const HPL_T_grid *const grid, HPL_T_pmat *const mat)
+    const int block_size, const HPL_T_grid *const grid, scalar *const mat)
 {
-    const scalar *const hA = arr.data<scalar>();
+    const file_scalar *const hA = arr.data<file_scalar>();
     const int global_I = ibrow * block_size;
     const int global_J = jbcol * block_size;
     int local_i{-1}, local_j{-1};
+
     int owner_proc_i{-1}, owner_proc_j{-1};
     const int first_row_block_size = block_size;
     const int first_col_block_size = block_size;
@@ -24,28 +26,44 @@ void read_one_block(const int ibrow, const int jbcol, const cnpy::NpyArray& arr,
         first_col_block_size, col_block_size, proc_row_for_I, proc_col_for_J,
         grid->myrow, grid->mycol, grid->nprow, grid->npcol, &local_i, &local_j,
         &owner_proc_i, &owner_proc_j);
-    const std::string err_msg =
-        " inconsistent distribution while reading matrix on process ("
-        + std::to_string(grid->myrow) + ", " + std::to_string(grid->mycol) + ")!";
-    if(owner_proc_i != grid->myrow) {
-        throw std::runtime_error("Row" + err_msg);
-    }
-    if(owner_proc_j != grid->mycol) {
-        throw std::runtime_error("Column" + err_msg);
+
+    {
+        // test
+        const std::string err_msg =
+            " inconsistent distribution while reading mat on process ("
+            + std::to_string(grid->myrow) + ", " + std::to_string(grid->mycol) + ")!";
+
+        const bool row_is_present = (ibrow % grid->nprow == grid->myrow);
+        if(!row_is_present) {
+            throw std::runtime_error("Row not present!");
+        }
+        const int t_bloc_i = ibrow / grid->nprow;
+        if(t_loc_i*block_size != local_i) {
+            throw std::runtime_error("Row " + err_msg);
+        }
+
+        const bool col_is_present = (jbcol % grid->npcol == grid->mycol);
+        if(!col_is_present) {
+            throw std::runtime_error("Col not present!");
+        }
+        const int t_bloc_j = jbcol / grid->npcol;
+        if(t_loc_j*block_size != local_j) {
+            throw std::runtime_error("Col " + err_msg);
+        }
     }
 
     if(arr.fortran_order) {
-        for(int j = local_j; j < block_size; j++) {
-            for(int i = local_i; i < block_size; i++) {
-                mat->A[i + j*mat->ld] = 
-                    static_cast<double>(hA[i - local_i + (j - local_j)*arr.shape[0]]);
+        for(int j = local_j; j < local_j + block_size; j++) {
+            for(int i = local_i; i < local_i + block_size; i++) {
+                mat[i + j*mat->ld] = 
+                    static_cast<scalar>(hA[i - local_i + (j - local_j)*arr.shape[0]]);
             }
         }
     } else {
-        for(int j = local_j; j < block_size; j++) {
-            for(int i = local_i; i < block_size; i++) {
-                mat->A[i + j*mat->ld] =
-                    static_cast<double>(hA[j - local_j + (i - local_i)*arr.shape[1]]);
+        for(int j = local_j; j < local_j + block_size; j++) {
+            for(int i = local_i; i < local_i + block_size; i++) {
+                mat[i + j*mat->ld] =
+                    static_cast<scalar>(hA[j - local_j + (i - local_i)*arr.shape[1]]);
             }
         }
     }
@@ -55,6 +73,7 @@ template <typename scalar>
 void read_vector_redundant(const int ibrow, const cnpy::NpyArray& arr,
     const int block_size, const HPL_T_grid *const grid, HPL_T_pmat *const mat)
 {
+    // TODO: Check HPL_indxg2p routine.
     const scalar *const hb = arr.data<scalar>();
     const int global_I = ibrow * block_size;
     const int global_J = mat->n;
@@ -118,12 +137,29 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
             << std::endl;
     }
     desc_stream.close();
-    if(n_block_rows < grid->nprow) {
-        throw std::runtime_error("Not enough block-rows!");
+
+    if(n_block_rows != grid->nprow) {
+        ORNL_HPL_THROW_NOT_IMPLEMENTED("Grid nprow should match number of block-rows in files.");
     }
-    if(n_block_cols < grid->npcol) {
-        throw std::runtime_error("Not enough block-columns!");
+    if(n_block_cols != grid->npcol) {
+        ORNL_HPL_THROW_NOT_IMPLEMENTED("Grid npcol should match number of block-cols in files.");
     }
+
+    const int file_block_row_size = n_total_rows / n_block_rows;
+    const int file_block_col_size = n_total_cols / n_block_cols;
+    if(file_block_row_size != file_block_col_size) {
+        ORNL_HPL_THROW_NOT_SUPPORTED("Rectangular blocks.");
+    }
+    if(file_block_row_size != block_size) {
+        ORNL_HPL_THROW_NOT_IMPLEMENTED(
+            "Different block size requested from the one in input files.");
+    }
+    //if(n_block_rows < grid->nprow) {
+    //    throw std::runtime_error("Not enough block-rows!");
+    //}
+    //if(n_block_cols < grid->npcol) {
+    //    throw std::runtime_error("Not enough block-columns!");
+    //}
 
     for(int ibrow = grid->myrow; ibrow < n_block_rows; ibrow += grid->nprow) {
         for(int jbcol = grid->mycol; jbcol < n_block_cols; jbcol += grid->npcol) {
