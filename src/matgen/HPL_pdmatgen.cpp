@@ -127,7 +127,7 @@ int HPL_pdmatgen(HPL_T_test* TEST,
    */
 
   // allocate on device
-  size_t numbytes = ((size_t)(mat->ld) * (size_t)(mat->nq)) * sizeof(double);
+  const size_t numbytes = ((size_t)(mat->ld) * (size_t)(mat->nq)) * sizeof(double);
 
 #ifdef HPL_VERBOSE_PRINT
   if((myrow == 0) && (mycol == 0)) {
@@ -164,7 +164,7 @@ int HPL_pdmatgen(HPL_T_test* TEST,
   Mnumroc(Anp, mat->n, mat->nb, mat->nb, myrow, 0, nprow);
 
   /*Need space for a column of panels for pdfact on CPU*/
-  size_t A_hostsize = mat->ld * mat->nb * sizeof(double);
+  const size_t A_hostsize = mat->ld * mat->nb * sizeof(double);
 
   if(hostMalloc(GRID, (void**)&(mat->A), A_hostsize, info) != HPL_SUCCESS) {
     HPL_pwarn(TEST->outfp,

@@ -72,6 +72,13 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
                    const std::string path_prefix,
                    HPL_T_pmat* const mat);
 
+template <typename scalar>
+void device_copy_2d_block(size_t source_ld, int nrows, int ncols, const scalar *source,
+                          size_t dest_ld, scalar *const dest);
+
+void HPL_gather_solution(const HPL_T_grid *grid, const HPL_T_pmat *mat, const double *dX,
+    const std::string& matrix_dir);
+
 void HPL_pdmatfree(HPL_T_pmat*);
 
 #endif

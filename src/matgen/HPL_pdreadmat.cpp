@@ -1,5 +1,6 @@
 
 #include <fstream>
+#include <iostream>
 #include <cnpy.h>
 
 #include "hpl.hpp"
@@ -8,7 +9,7 @@
 
 template <typename scalar, typename file_scalar>
 void read_one_block(const int ibrow, const int jbcol, const cnpy::NpyArray& arr,
-    const int block_size, const HPL_T_grid *const grid, scalar *const mat)
+    const int block_size, const HPL_T_grid *const grid, const int mat_ld, scalar *const mat)
 {
     const file_scalar *const hA = arr.data<file_scalar>();
     const int global_I = ibrow * block_size;
@@ -41,7 +42,7 @@ void read_one_block(const int ibrow, const int jbcol, const cnpy::NpyArray& arr,
             throw std::runtime_error("Row not present 2!");
         }
         const int t_bloc_i = ibrow / grid->nprow;
-        if(t_loc_i*block_size != local_i) {
+        if(t_bloc_i*block_size != local_i) {
             throw std::runtime_error("Row " + err_msg);
         }
 
@@ -53,33 +54,48 @@ void read_one_block(const int ibrow, const int jbcol, const cnpy::NpyArray& arr,
             throw std::runtime_error("Col not present 2!");
         }
         const int t_bloc_j = jbcol / grid->npcol;
-        if(t_loc_j*block_size != local_j) {
+        if(t_bloc_j*block_size != local_j) {
             throw std::runtime_error("Col " + err_msg);
         }
     }
 
+    const size_t bufsize = arr.shape[0]*arr.shape[1]*sizeof(scalar);
+    scalar *atemp{};
+    hipHostMalloc(&atemp, bufsize);
+
+    // transpose if necesssary
     if(arr.fortran_order) {
-        for(int j = local_j; j < local_j + block_size; j++) {
-            for(int i = local_i; i < local_i + block_size; i++) {
-                mat[i + j*mat->ld] = 
-                    static_cast<scalar>(hA[i - local_i + (j - local_j)*arr.shape[0]]);
+        for(int j = 0; j < block_size; j++) {
+            for(int i = 0; i < block_size; i++) {
+                atemp[i + j*arr.shape[0]] = 
+                    static_cast<scalar>(hA[i + j*arr.shape[0]]);
             }
         }
     } else {
-        for(int j = local_j; j < local_j + block_size; j++) {
-            for(int i = local_i; i < local_i + block_size; i++) {
-                mat[i + j*mat->ld] =
-                    static_cast<scalar>(hA[j - local_j + (i - local_i)*arr.shape[1]]);
+        for(int j = 0; j < block_size; j++) {
+            for(int i = 0; i < block_size; i++) {
+                atemp[i + j*arr.shape[0]] =
+                    static_cast<scalar>(hA[j + i*arr.shape[1]]);
             }
         }
     }
+
+    scalar *d_atemp;
+    hipMalloc(&d_atemp, bufsize);
+    hipMemcpy(d_atemp, atemp, bufsize, hipMemcpyHostToDevice);
+
+    device_copy_2d_block(arr.shape[0], arr.shape[0], arr.shape[1], d_atemp,
+        mat_ld, mat + local_i + local_j*mat_ld);
+
+    hipHostFree(atemp);
+    hipFree(d_atemp);
 }
 
-template <typename scalar>
+template <typename scalar, typename file_scalar>
 void read_vector_redundant(const int ibrow, const cnpy::NpyArray& arr,
     const int block_size, const HPL_T_grid *const grid, HPL_T_pmat *const mat)
 {
-    const scalar *const hb = arr.data<scalar>();
+    const file_scalar *const hb = arr.data<scalar>();
     const int global_I = ibrow * block_size;
     const int global_J = mat->n;
     int local_i{-1}, local_j{-1};
@@ -106,16 +122,17 @@ void read_vector_redundant(const int ibrow, const cnpy::NpyArray& arr,
     if(owner_proc_j != grid->mycol) {
         throw std::runtime_error("Column" + err_msg);
     }
+    
+    const size_t bufsize = arr.shape[0]*sizeof(scalar);
+    // need intermediate buffer for casting
+    scalar *btemp{};
+    hipHostMalloc(&btemp, bufsize);
 
-    if(arr.fortran_order) {
-        for(int i = local_i; i < block_size; i++) {
-            mat->A[i + local_j*mat->ld] = static_cast<double>(hb[i - local_i]);
-        }
-    } else {
-        for(int i = local_i; i < block_size; i++) {
-            mat->A[i + local_j*mat->ld] = static_cast<double>(hb[i - local_i]);
-        }
+    for(int i = 0; i < block_size; i++) {
+        btemp[i] = static_cast<scalar>(hb[i]);
     }
+    hipMemcpy(mat->dA + local_i + local_j * mat->ld, btemp, bufsize, hipMemcpyHostToDevice);
+    hipHostFree(btemp);
 }
 
 /*
@@ -142,6 +159,7 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
             << std::endl;
     }
     desc_stream.close();
+    const int n_total_cols = n_total_rows;
 
     if(n_block_rows != grid->nprow) {
         ORNL_HPL_THROW_NOT_IMPLEMENTED("Grid nprow should match number of block-rows in files.");
@@ -172,9 +190,11 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
                 + std::to_string(jbcol) + ".npy";
             cnpy::NpyArray arr = cnpy::npy_load(path);
             if(arr.word_size == 4) {
-                read_one_block<float>(ibrow, jbcol, arr, block_size, grid, mat);
+                read_one_block<double,float>(ibrow, jbcol, arr, block_size, grid,
+                                             mat->ld, mat->dA);
             } else if(arr.word_size == 8) {
-                read_one_block<double>(ibrow, jbcol, arr, block_size, grid, mat);
+                read_one_block<double,double>(ibrow, jbcol, arr, block_size, grid,
+                                              mat->ld, mat->dA);
             } else {
                 ORNL_HPL_THROW_UNSUPPORTED_SCALAR_TYPE(
                         "Matrix file has unsupported scalar type!");
@@ -192,13 +212,35 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
         for(int ibrow = grid->myrow; ibrow < n_block_rows; ibrow += grid->nprow) {
             //
             if(arr.word_size == 4) {
-                read_vector_redundant<float>(ibrow, arr, block_size, grid, mat);
+                read_vector_redundant<double,float>(ibrow, arr, block_size, grid, mat);
             } else if(arr.word_size == 8) {
-                read_vector_redundant<double>(ibrow, arr, block_size, grid, mat);
+                read_vector_redundant<double,double>(ibrow, arr, block_size, grid, mat);
             } else {
                 ORNL_HPL_THROW_UNSUPPORTED_SCALAR_TYPE(
                         "b-vector file has unsupported scalar type!");
             }
+        }
+    }
+}
+
+void HPL_gather_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const mat,
+    const double *const dX, const std::string& matrix_dir)
+{
+    if(grid->myrow == 0) {
+        // gather X
+        double *hX{};
+        if(grid->mycol == 0) {
+            hX = malloc(mat->n * sizeof(double);
+        }
+        double *hX_piece = malloc(mat->nq * sizeof(double));
+        hipMemcpy(hX_piece, dX, mat->nq * sizeof(double), hipMemcpyDeviceToHost);
+        // TODO: block-cyclic gather into hX
+        //
+        free(hX_piece);
+        if(grid->mycol == 0) {
+            cnpy::npy_save(matrix_dir + "/x_sol.npy", hX,
+                std::vector<size_t>{static_cast<size_t>(mat->n), 0});
+            free(hX);
         }
     }
 }
