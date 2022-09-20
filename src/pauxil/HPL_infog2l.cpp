@@ -72,12 +72,12 @@ void HPL_infog2l(int       I,
    *
    * RSRC    (global input)                const int
    *         On entry,  RSRC  specifies  the row coordinate of the process
-   *         that possesses the row  I.  RSRC  must  be at least zero  and
+   *         that possesses the row  I (or zero??).  RSRC  must  be at least zero  and
    *         strictly less than NPROW.
    *
    * CSRC    (global input)                const int
    *         On entry, CSRC specifies the column coordinate of the process
-   *         that possesses the column J. CSRC  must be at least zero  and
+   *         that possesses the column J (or zero??). CSRC  must be at least zero  and
    *         strictly less than NPCOL.
    *
    * MYROW   (local input)                 const int

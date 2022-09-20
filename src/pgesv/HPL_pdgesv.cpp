@@ -92,7 +92,7 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
   nn -= jb;
   jstart += jb;
   if(mycol == icurcol) {
-    jj += jb;
+    jj += jb;  // this does nothing
     nq -= jb;
   }
   icurcol = MModAdd1(icurcol, npcol);
@@ -178,6 +178,7 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
   /*
    * Main loop over the remaining columns of A
    */
+  // under 'normal' circumstances, jstart is nb at this point
   for(j = jstart; j < N; j += nb) {
     HPL_ptimer_stepReset(HPL_TIMING_N, HPL_TIMING_BEG);
 
@@ -380,6 +381,7 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
     panel[0] = panel[1];
     panel[1] = p;
   }
+
   /*
    * Clean-up: Finish updates - release panels and panel list
    */
