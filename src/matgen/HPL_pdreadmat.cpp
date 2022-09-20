@@ -20,10 +20,10 @@ void read_one_block(const int ibrow, const int jbcol, const cnpy::NpyArray& arr,
     const int first_col_block_size = block_size;
     const int row_block_size = block_size;
     const int col_block_size = block_size;
-    const int proc_row_for_I = grid->myrow;
-    const int proc_col_for_J = grid->mycol;
+    const int proc_row_start = 0;
+    const int proc_col_start = 0;
     HPL_infog2l(global_I, global_J, first_row_block_size, row_block_size,
-        first_col_block_size, col_block_size, proc_row_for_I, proc_col_for_J,
+        first_col_block_size, col_block_size, proc_row_start, proc_col_start,
         grid->myrow, grid->mycol, grid->nprow, grid->npcol, &local_i, &local_j,
         &owner_proc_i, &owner_proc_j);
 
@@ -37,6 +37,9 @@ void read_one_block(const int ibrow, const int jbcol, const cnpy::NpyArray& arr,
         if(!row_is_present) {
             throw std::runtime_error("Row not present!");
         }
+        if(owner_proc_i != grid->myrow) {
+            throw std::runtime_error("Row not present 2!");
+        }
         const int t_bloc_i = ibrow / grid->nprow;
         if(t_loc_i*block_size != local_i) {
             throw std::runtime_error("Row " + err_msg);
@@ -45,6 +48,9 @@ void read_one_block(const int ibrow, const int jbcol, const cnpy::NpyArray& arr,
         const bool col_is_present = (jbcol % grid->npcol == grid->mycol);
         if(!col_is_present) {
             throw std::runtime_error("Col not present!");
+        }
+        if(owner_proc_j != grid->mycol) {
+            throw std::runtime_error("Col not present 2!");
         }
         const int t_bloc_j = jbcol / grid->npcol;
         if(t_loc_j*block_size != local_j) {
@@ -73,7 +79,6 @@ template <typename scalar>
 void read_vector_redundant(const int ibrow, const cnpy::NpyArray& arr,
     const int block_size, const HPL_T_grid *const grid, HPL_T_pmat *const mat)
 {
-    // TODO: Check HPL_indxg2p routine.
     const scalar *const hb = arr.data<scalar>();
     const int global_I = ibrow * block_size;
     const int global_J = mat->n;
@@ -83,10 +88,10 @@ void read_vector_redundant(const int ibrow, const cnpy::NpyArray& arr,
     const int first_col_block_size = block_size;
     const int row_block_size = block_size;
     const int col_block_size = block_size;
-    const int proc_row_for_I = grid->myrow;
-    const int proc_col_for_J = grid->mycol;
+    const int proc_row_start = 0;
+    const int proc_col_start = 0;
     HPL_infog2l(global_I, global_J, first_row_block_size, row_block_size,
-        first_col_block_size, col_block_size, proc_row_for_I, proc_col_for_J,
+        first_col_block_size, col_block_size, proc_row_start, proc_col_start,
         grid->myrow, grid->mycol, grid->nprow, grid->npcol, &local_i, &local_j,
         &owner_proc_i, &owner_proc_j);
     if(local_j != mat->nq) {
@@ -177,12 +182,13 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
         }
     }
 
-    // b vector stored in the last process-column
+    // b vector
     // NOTE: For now, we assume b is stored in a single file and redundantly load it on all
-    //  processes in the last process-column.
-    if(grid->mycol == grid->npcol - 1) {
-        const std::string path = path_prefix + "/b.npy";
-        cnpy::NpyArray arr = cnpy::npy_load(path);
+    //  processes in the proc-column the contains the last matrix column
+    if(grid->mycol == HPL_indxg2p(n_total_cols, block_size, block_size, 0, grid->npcol)) {
+        // If this proc-column contains the (N+1)th column, read b
+        const std::string b_path = path_prefix + "/b.npy";
+        cnpy::NpyArray arr = cnpy::npy_load(b_path);
         for(int ibrow = grid->myrow; ibrow < n_block_rows; ibrow += grid->nprow) {
             //
             if(arr.word_size == 4) {
