@@ -4,8 +4,8 @@
 
 template <typename scalar>
 __global__
-void copy2d(size_t source_ld, int nrows, int ncols, const scalar *source,
-            size_t dest_ld, scalar *const dest)
+void copy2d(const size_t source_ld, const int nrows, const int ncols, const scalar *source,
+            const size_t dest_ld, scalar *const dest)
 {
     const int flat_idx = blockIdx.x * blockDim.x + threadIdx.x;
     const int i = flat_idx % nrows;

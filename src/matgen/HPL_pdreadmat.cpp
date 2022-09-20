@@ -36,6 +36,9 @@ void read_one_block(const int ibrow, const int jbcol, const cnpy::NpyArray& arr,
 
         const bool row_is_present = (ibrow % grid->nprow == grid->myrow);
         if(!row_is_present) {
+            std::cout << "A: Proc " << grid->myrow << ", " << grid->mycol << ": "
+                << local_i << " " << local_j << " " << owner_proc_i << " " << owner_proc_j
+                << std::endl;
             throw std::runtime_error("Row not present!");
         }
         if(owner_proc_i != grid->myrow) {
@@ -95,7 +98,7 @@ template <typename scalar, typename file_scalar>
 void read_vector_redundant(const int ibrow, const cnpy::NpyArray& arr,
     const int block_size, const HPL_T_grid *const grid, HPL_T_pmat *const mat)
 {
-    const file_scalar *const hb = arr.data<scalar>();
+    const file_scalar *const hb = arr.data<file_scalar>();
     const int global_I = ibrow * block_size;
     const int global_J = mat->n;
     int local_i{-1}, local_j{-1};
@@ -110,7 +113,10 @@ void read_vector_redundant(const int ibrow, const cnpy::NpyArray& arr,
         first_col_block_size, col_block_size, proc_row_start, proc_col_start,
         grid->myrow, grid->mycol, grid->nprow, grid->npcol, &local_i, &local_j,
         &owner_proc_i, &owner_proc_j);
-    if(local_j != mat->nq) {
+    if(local_j != mat->nq-1) {
+        std::cout << "b: Proc " << grid->myrow << ", " << grid->mycol << ": "
+            << local_i << " " << local_j << " " << owner_proc_i << " " << owner_proc_j
+            << ", local nq = " << mat->nq << std::endl;
         throw std::runtime_error("Inconsistent location of b vector storage!");
     }
     const std::string err_msg =
@@ -123,13 +129,13 @@ void read_vector_redundant(const int ibrow, const cnpy::NpyArray& arr,
         throw std::runtime_error("Column" + err_msg);
     }
     
-    const size_t bufsize = arr.shape[0]*sizeof(scalar);
+    const size_t bufsize = block_size*sizeof(scalar);
     // need intermediate buffer for casting
     scalar *btemp{};
     hipHostMalloc(&btemp, bufsize);
 
     for(int i = 0; i < block_size; i++) {
-        btemp[i] = static_cast<scalar>(hb[i]);
+        btemp[i] = static_cast<scalar>(hb[ibrow*block_size + i]);
     }
     hipMemcpy(mat->dA + local_i + local_j * mat->ld, btemp, bufsize, hipMemcpyHostToDevice);
     hipHostFree(btemp);
@@ -161,12 +167,12 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
     desc_stream.close();
     const int n_total_cols = n_total_rows;
 
-    if(n_block_rows != grid->nprow) {
-        ORNL_HPL_THROW_NOT_IMPLEMENTED("Grid nprow should match number of block-rows in files.");
-    }
-    if(n_block_cols != grid->npcol) {
-        ORNL_HPL_THROW_NOT_IMPLEMENTED("Grid npcol should match number of block-cols in files.");
-    }
+    //if(n_block_rows != grid->nprow) {
+    //    ORNL_HPL_THROW_NOT_IMPLEMENTED("Grid nprow should match number of block-rows in files.");
+    //}
+    //if(n_block_cols != grid->npcol) {
+    //    ORNL_HPL_THROW_NOT_IMPLEMENTED("Grid npcol should match number of block-cols in files.");
+    //}
 
     const int file_block_row_size = n_total_rows / n_block_rows;
     const int file_block_col_size = n_total_cols / n_block_cols;
@@ -177,12 +183,13 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
         ORNL_HPL_THROW_NOT_IMPLEMENTED(
             "Different block size requested from the one in input files.");
     }
-    //if(n_block_rows < grid->nprow) {
-    //    throw std::runtime_error("Not enough block-rows!");
-    //}
-    //if(n_block_cols < grid->npcol) {
-    //    throw std::runtime_error("Not enough block-columns!");
-    //}
+
+    if(n_block_rows < grid->nprow) {
+        throw std::runtime_error("Not enough block-rows!");
+    }
+    if(n_block_cols < grid->npcol) {
+        throw std::runtime_error("Not enough block-columns!");
+    }
 
     for(int ibrow = grid->myrow; ibrow < n_block_rows; ibrow += grid->nprow) {
         for(int jbcol = grid->mycol; jbcol < n_block_cols; jbcol += grid->npcol) {
@@ -224,16 +231,16 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
 }
 
 void HPL_gather_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const mat,
-    const double *const dX, const std::string& matrix_dir)
+    const std::string& matrix_dir)
 {
     if(grid->myrow == 0) {
         // gather X
         double *hX{};
         if(grid->mycol == 0) {
-            hX = malloc(mat->n * sizeof(double);
+            hX = static_cast<double*>(malloc(mat->n * sizeof(double)));
         }
-        double *hX_piece = malloc(mat->nq * sizeof(double));
-        hipMemcpy(hX_piece, dX, mat->nq * sizeof(double), hipMemcpyDeviceToHost);
+        auto hX_piece = static_cast<double*>(malloc(mat->nq * sizeof(double)));
+        hipMemcpy(hX_piece, mat->dX, mat->nq * sizeof(double), hipMemcpyDeviceToHost);
         // TODO: block-cyclic gather into hX
         //
         free(hX_piece);

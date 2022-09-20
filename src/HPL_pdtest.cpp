@@ -445,6 +445,12 @@ void HPL_pdtest(HPL_T_test* TEST,
    */
   hipMemcpy(dBptr, Bptr, mat.mp * sizeof(double), hipMemcpyHostToDevice);
   resid0 = HPL_pdlange(GRID, HPL_NORM_I, N, 1, NB, dBptr, mat.ld);
+
+  // Gather and write solution if needed
+  if(!TEST->matrix_dir.empty()) {
+      HPL_gather_solution(GRID, &mat, TEST->matrix_dir);
+  }
+
   /*
    * Computes and displays norms, residuals ...
    */
@@ -499,6 +505,7 @@ void HPL_pdtest(HPL_T_test* TEST,
     }
 
 #ifdef HPL_PROGRESS_REPORT
+    printf("Final normalized residual norm = %e.\n", resid1);
     if(resid1 < TEST->thrsh)
       printf("Residual Check: PASSED \n");
     else
