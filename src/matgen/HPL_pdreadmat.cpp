@@ -1,6 +1,8 @@
 
 #include <fstream>
 #include <iostream>
+#include <algorithm>
+
 #include <cnpy.h>
 
 #include "hpl.hpp"
@@ -211,7 +213,7 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
 
     // b vector
     // NOTE: For now, we assume b is stored in a single file and redundantly load it on all
-    //  processes in the proc-column the contains the last matrix column
+    //  processes in the proc-column that contains the last matrix column
     if(grid->mycol == HPL_indxg2p(n_total_cols, block_size, block_size, 0, grid->npcol)) {
         // If this proc-column contains the (N+1)th column, read b
         const std::string b_path = path_prefix + "/b.npy";
@@ -230,25 +232,87 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
     }
 }
 
+template <typename scalar>
+void copy_blocks(const HPL_T_grid *const grid, const HPL_T_pmat *const mat, const scalar *const local_x,
+                 const int remote_proc, const int remote_size, scalar *const global_x);
+
 void HPL_gather_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const mat,
-    const std::string& matrix_dir)
+                         double *const hX)
 {
-    if(grid->myrow == 0) {
-        // gather X
-        double *hX{};
-        if(grid->mycol == 0) {
-            hX = static_cast<double*>(malloc(mat->n * sizeof(double)));
+    using scalar = double;
+    const int root = 0;
+    const int local_nq = mat->nq-1; // account for extra column
+    
+    scalar *hlocX{};
+    hipHostMalloc(&hlocX, local_nq * sizeof(scalar));
+    hipMemcpy(hlocX, mat->dX, local_nq * sizeof(scalar), hipMemcpyDeviceToHost);
+    if(grid->mycol != 0) {
+        MPI_Send(hlocX, local_nq, MPI_DOUBLE, root, 1, grid->row_comm);
+    }
+
+    if(grid->mycol == root) {
+        for(int jqcol = 0; jqcol < grid->npcol; jqcol++) {
+            // For remote rank, compute nq
+            const int remote_nq = HPL_numroc(mat->n, mat->nb, mat->nb, jqcol, 0, grid->npcol);
+            if(remote_nq % mat->nb != 0) {
+                throw std::runtime_error("Invalid blocking during solution gather!");
+            }
+
+            scalar *hremX{};
+            if(jqcol != root) {
+                hipHostMalloc(&hremX, remote_nq * sizeof(scalar));
+                MPI_Recv(hremX, remote_nq, MPI_DOUBLE, jqcol, 1, grid->row_comm, MPI_STATUS_IGNORE);
+            } else {
+                hremX = hlocX;
+                if(remote_nq != local_nq) {
+                    std::cout << "Remote nq = " << remote_nq << ", this nq = " << local_nq << std::endl;
+                    throw std::runtime_error("Iconsistent local sizes in solution gather!");
+                }
+            }
+
+            // Compute global indices knowing block size and remote proc-column index.
+            copy_blocks(grid, mat, hremX, jqcol, remote_nq, hX);
+
+            if(jqcol != root) {
+                hipHostFree(hremX);
+            }
         }
-        auto hX_piece = static_cast<double*>(malloc(mat->nq * sizeof(double)));
-        hipMemcpy(hX_piece, mat->dX, mat->nq * sizeof(double), hipMemcpyDeviceToHost);
-        // TODO: block-cyclic gather into hX
-        //
-        free(hX_piece);
-        if(grid->mycol == 0) {
-            cnpy::npy_save(matrix_dir + "/x_sol.npy", hX,
-                std::vector<size_t>{static_cast<size_t>(mat->n), 0});
-            free(hX);
-        }
+    }
+
+    hipHostFree(hlocX);
+}
+
+void HPL_gather_write_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const mat,
+                               const std::string& matrix_dir)
+{
+    using scalar = double;
+
+    if(grid->myrow != 0) {
+        return;
+    }
+        
+    double *hX{};
+    if(grid->mycol == 0) {
+        hX = static_cast<scalar*>(malloc(mat->n * sizeof(scalar)));
+    }
+
+    HPL_gather_solution(grid, mat, hX);
+
+    if(grid->mycol == 0) {
+        cnpy::npy_save(matrix_dir + "/solution/x.npy", hX,
+            std::vector<size_t>{static_cast<size_t>(mat->n), 1});
+        free(hX);
+    }
+}
+
+template <typename scalar>
+void copy_blocks(const HPL_T_grid *const grid, const HPL_T_pmat *const mat, const scalar *const local_x,
+                 const int remote_proc, const int remote_size, scalar *const global_x)
+{
+    constexpr int srcproc = 0;
+    for(int lc = 0; lc < remote_size; lc += mat->nb) {
+        const int gc = HPL_indxl2g(lc, mat->nb, mat->nb, remote_proc, srcproc, grid->npcol);
+        std::copy(local_x + lc, local_x + lc + mat->nb, global_x + gc);
     }
 }
 
