@@ -14,6 +14,9 @@ void read_one_block(const int ibrow, const int jbcol, const cnpy::NpyArray& arr,
     const int block_size, const HPL_T_grid *const grid, const int mat_ld, scalar *const mat)
 {
     const file_scalar *const hA = arr.data<file_scalar>();
+    if(block_size != arr.shape[0]) {
+        throw std::runtime_error("block size requested should be same as file!");
+    }
     const int global_I = ibrow * block_size;
     const int global_J = jbcol * block_size;
     int local_i{-1}, local_j{-1};
@@ -32,6 +35,32 @@ void read_one_block(const int ibrow, const int jbcol, const cnpy::NpyArray& arr,
 
     {
         // test
+        const int test_owner_proc_i = HPL_indxg2p(global_I, block_size, block_size, 0, grid->nprow);
+        const int test_owner_proc_j = HPL_indxg2p(global_J, block_size, block_size, 0, grid->npcol);
+        if(test_owner_proc_i != owner_proc_i) {
+            throw std::runtime_error("Inconsistent_rows");
+        }
+        if(test_owner_proc_j != owner_proc_j) {
+            throw std::runtime_error("Inconsistent_cols");
+        }
+        const int test_owner_proc_e_i = HPL_indxg2p(global_I+block_size-1, block_size, block_size,
+                0, grid->nprow);
+        const int test_owner_proc_e_j = HPL_indxg2p(global_J+block_size-1, block_size, block_size,
+                0, grid->npcol);
+        if(test_owner_proc_e_i != owner_proc_i) {
+            throw std::runtime_error("Inconsistent proc rows for end of block");
+        }
+        if(test_owner_proc_e_j != owner_proc_j) {
+            throw std::runtime_error("Inconsistent proc cols for end of block");
+        }
+        const int test_local_i = HPL_indxg2l(global_I, block_size, block_size, 0, grid->nprow);
+        const int test_local_j = HPL_indxg2l(global_J, block_size, block_size, 0, grid->npcol);
+        if(test_local_i != local_i) {
+            throw std::runtime_error("Inconsistent_local rows");
+        }
+        if(test_local_j != local_j) {
+            throw std::runtime_error("Inconsistent_local cols");
+        }
         const std::string err_msg =
             " inconsistent distribution while reading mat on process ("
             + std::to_string(grid->myrow) + ", " + std::to_string(grid->mycol) + ")!";
@@ -85,21 +114,18 @@ void read_one_block(const int ibrow, const int jbcol, const cnpy::NpyArray& arr,
         }
     }
 
-    scalar *d_atemp;
-    hipMalloc(&d_atemp, bufsize);
-    hipMemcpy(d_atemp, atemp, bufsize, hipMemcpyHostToDevice);
-
-    device_copy_2d_block(arr.shape[0], arr.shape[0], arr.shape[1], d_atemp,
-        mat_ld, mat + local_i + local_j*mat_ld);
+    hipMemcpy2D(mat + local_i + local_j*mat_ld, mat_ld*sizeof(scalar),
+            atemp, arr.shape[0]*sizeof(scalar), block_size*sizeof(scalar), block_size,
+            hipMemcpyHostToDevice);
 
     hipHostFree(atemp);
-    hipFree(d_atemp);
 }
 
 template <typename scalar, typename file_scalar>
 void read_vector_redundant(const int ibrow, const cnpy::NpyArray& arr,
-    const int block_size, const HPL_T_grid *const grid, HPL_T_pmat *const mat)
+    const HPL_T_grid *const grid, HPL_T_pmat *const mat)
 {
+    const int block_size = mat->nb;
     const file_scalar *const hb = arr.data<file_scalar>();
     const int global_I = ibrow * block_size;
     const int global_J = mat->n;
@@ -115,20 +141,32 @@ void read_vector_redundant(const int ibrow, const cnpy::NpyArray& arr,
         first_col_block_size, col_block_size, proc_row_start, proc_col_start,
         grid->myrow, grid->mycol, grid->nprow, grid->npcol, &local_i, &local_j,
         &owner_proc_i, &owner_proc_j);
-    if(local_j != mat->nq-1) {
-        std::cout << "b: Proc " << grid->myrow << ", " << grid->mycol << ": "
-            << local_i << " " << local_j << " " << owner_proc_i << " " << owner_proc_j
-            << ", local nq = " << mat->nq << std::endl;
-        throw std::runtime_error("Inconsistent location of b vector storage!");
-    }
-    const std::string err_msg =
-        " inconsistent distribution while reading b on process ("
-        + std::to_string(grid->myrow) + ", " + std::to_string(grid->mycol) + ")!";
-    if(owner_proc_i != grid->myrow) {
-        throw std::runtime_error("Row" + err_msg);
-    }
-    if(owner_proc_j != grid->mycol) {
-        throw std::runtime_error("Column" + err_msg);
+
+    {
+        //test
+        const int test_proc_i = HPL_indxg2p(global_I, mat->nb, mat->nb, 0, grid->nprow);
+        if(test_proc_i != owner_proc_i) {
+            throw std::runtime_error("Inconsistent owner row proc while reading b!");
+        }
+        const int test_local_i = HPL_indxg2l(global_I, mat->nb, mat->nb, 0, grid->nprow);
+        if(test_local_i != local_i) {
+            throw std::runtime_error("Inconsistent local row idx while reading b!");
+        }
+        if(local_j != mat->nq-1) {
+            std::cout << "b: Proc " << grid->myrow << ", " << grid->mycol << ": "
+                << local_i << " " << local_j << " " << owner_proc_i << " " << owner_proc_j
+                << ", local nq = " << mat->nq << std::endl;
+            throw std::runtime_error("Inconsistent location of b vector storage!");
+        }
+        const std::string err_msg =
+            " inconsistent distribution while reading b on process ("
+            + std::to_string(grid->myrow) + ", " + std::to_string(grid->mycol) + ")!";
+        if(owner_proc_i != grid->myrow) {
+            throw std::runtime_error("Row" + err_msg);
+        }
+        if(owner_proc_j != grid->mycol) {
+            throw std::runtime_error("Column" + err_msg);
+        }
     }
     
     const size_t bufsize = block_size*sizeof(scalar);
@@ -151,7 +189,6 @@ void read_vector_redundant(const int ibrow, const cnpy::NpyArray& arr,
 void HPL_pdreadmat(const HPL_T_grid* const grid,
                    const int nrows_global,
                    const int ncols_global,
-                   const int block_size,
                    const std::string path_prefix,
                    HPL_T_pmat* const mat)
 {
@@ -168,6 +205,7 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
     }
     desc_stream.close();
     const int n_total_cols = n_total_rows;
+    const int block_size = mat->nb;
 
     //if(n_block_rows != grid->nprow) {
     //    ORNL_HPL_THROW_NOT_IMPLEMENTED("Grid nprow should match number of block-rows in files.");
@@ -182,6 +220,8 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
         ORNL_HPL_THROW_NOT_SUPPORTED("Rectangular blocks.");
     }
     if(file_block_row_size != block_size) {
+        std::cout << "File row block size = " << file_block_row_size <<
+            ", block size = " << block_size << std::endl;
         ORNL_HPL_THROW_NOT_IMPLEMENTED(
             "Different block size requested from the one in input files.");
     }
@@ -199,9 +239,15 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
                 + std::to_string(jbcol) + ".npy";
             cnpy::NpyArray arr = cnpy::npy_load(path);
             if(arr.word_size == 4) {
+                if(ibrow == 0 && jbcol == 0) {
+                    std::cout << "Reading matrix with float values." << std::endl;
+                }
                 read_one_block<double,float>(ibrow, jbcol, arr, block_size, grid,
                                              mat->ld, mat->dA);
             } else if(arr.word_size == 8) {
+                if(ibrow == 0 && jbcol == 0) {
+                    std::cout << "Reading matrix with double values." << std::endl;
+                }
                 read_one_block<double,double>(ibrow, jbcol, arr, block_size, grid,
                                               mat->ld, mat->dA);
             } else {
@@ -221,9 +267,9 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
         for(int ibrow = grid->myrow; ibrow < n_block_rows; ibrow += grid->nprow) {
             //
             if(arr.word_size == 4) {
-                read_vector_redundant<double,float>(ibrow, arr, block_size, grid, mat);
+                read_vector_redundant<double,float>(ibrow, arr, grid, mat);
             } else if(arr.word_size == 8) {
-                read_vector_redundant<double,double>(ibrow, arr, block_size, grid, mat);
+                read_vector_redundant<double,double>(ibrow, arr, grid, mat);
             } else {
                 ORNL_HPL_THROW_UNSUPPORTED_SCALAR_TYPE(
                         "b-vector file has unsupported scalar type!");
@@ -233,8 +279,9 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
 }
 
 template <typename scalar>
-void copy_blocks(const HPL_T_grid *const grid, const HPL_T_pmat *const mat, const scalar *const local_x,
-                 const int remote_proc, const int remote_size, scalar *const global_x);
+void copy_blocks(const HPL_T_grid *const grid, const HPL_T_pmat *const mat,
+    const scalar *const local_x, const int remote_proc, const int remote_size,
+    scalar *const global_x);
 
 void HPL_gather_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const mat,
                          double *const hX)
@@ -248,6 +295,19 @@ void HPL_gather_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const m
     hipMemcpy(hlocX, mat->dX, local_nq * sizeof(scalar), hipMemcpyDeviceToHost);
     if(grid->mycol != 0) {
         MPI_Send(hlocX, local_nq, MPI_DOUBLE, root, 1, grid->row_comm);
+    }
+
+    {
+        const int lastpcol = HPL_indxg2p(mat->n-1, mat->nb, mat->nb, 0, grid->npcol);
+        if(grid->mycol == lastpcol) {
+            const int locidx = HPL_indxg2l(mat->n-1, mat->nb, mat->nb, 0, grid->npcol);
+            std::cout << "Last few entries of solution vector:"
+                << std::endl;
+            for(int i = std::max(0,locidx - 5); i <= locidx; i++) {
+                std::cout << hlocX[i] << std::endl;
+            }
+            std::cout << std::endl;
+        }
     }
 
     if(grid->mycol == root) {
@@ -265,9 +325,16 @@ void HPL_gather_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const m
             } else {
                 hremX = hlocX;
                 if(remote_nq != local_nq) {
-                    std::cout << "Remote nq = " << remote_nq << ", this nq = " << local_nq << std::endl;
+                    std::cout << "Remote nq = " << remote_nq << ", this nq = " << local_nq
+                        << std::endl;
                     throw std::runtime_error("Iconsistent local sizes in solution gather!");
                 }
+
+                std::cout << "First few entries of solution vector:" << std::endl;
+                for(int i = 0; i < std::min(5, local_nq); i++) {
+                    std::cout << hlocX[i] << std::endl;
+                }
+                std::cout << std::endl;
             }
 
             // Compute global indices knowing block size and remote proc-column index.
@@ -299,6 +366,19 @@ void HPL_gather_write_solution(const HPL_T_grid *const grid, const HPL_T_pmat *c
     HPL_gather_solution(grid, mat, hX);
 
     if(grid->mycol == 0) {
+        //std::cout << "First few entries of gathered solution vector:" << std::endl;
+        //for(int i = 0; i < std::min(5, mat->n); i++) {
+        //    std::cout << hX[i] << std::endl;
+        //}
+        //std::cout << "Middle few entries of gathered solution vector:" << std::endl;
+        //for(int i = mat->n/2; i < std::min(mat->n/2 + 5, mat->n); i++) {
+        //    std::cout << hX[i] << std::endl;
+        //}
+        //std::cout << "Last few entries of gathered solution vector:" << std::endl;
+        //for(int i = std::max(0, mat->n - 10); i < mat->n; i++) {
+        //    std::cout << hX[i] << std::endl;
+        //}
+        //std::cout << std::endl;
         cnpy::npy_save(matrix_dir + "/solution/x.npy", hX,
             std::vector<size_t>{static_cast<size_t>(mat->n), 1});
         free(hX);

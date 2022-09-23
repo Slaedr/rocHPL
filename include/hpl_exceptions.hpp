@@ -43,6 +43,19 @@ public:
 #define ORNL_HPL_THROW_NOT_IMPLEMENTED(unimplemented_op) \
     throw ornl_hpl::NotImplemented(__FILE__, __LINE__, unimplemented_op)
 
+
+class ZeroPivot : public std::runtime_error
+{
+public:
+    ZeroPivot(const std::string file, int line, const double pivot_value)
+        : std::runtime_error("ORNL HPL: ZERO pivot at " + file + std::to_string(line)
+                + ": " + std::to_string(pivot_value))
+    { }
+};
+
+#define ORNL_HPL_THROW_ZERO_PIVOT(pivot_value) \
+    throw ornl_hpl::ZeroPivot(__FILE__, __LINE__, pivot_value)
+
 }
 
 #endif

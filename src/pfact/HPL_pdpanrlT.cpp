@@ -14,7 +14,10 @@
  * ---------------------------------------------------------------------
  */
 
+#include <limits>
+
 #include "hpl.hpp"
+#include "hpl_exceptions.hpp"
 
 void HPL_pdpanrlT(HPL_T_panel* PANEL,
                   const int    M,
@@ -117,6 +120,10 @@ void HPL_pdpanrlT(HPL_T_panel* PANEL,
   HPL_dlocmax(
       PANEL, m, ii, jj, WORK, thread_rank, thread_size, max_index, max_value);
 
+  if(std::abs(max_value[0]) < std::numeric_limits<double>::epsilon()) {
+      ORNL_HPL_THROW_ZERO_PIVOT(max_value[0]);
+  }
+
   while(Nm1 >= 1) {
     Acur = Mptr(A, iip1, jj, lda);
     Anxt = Mptr(Acur, 0, 1, lda);
@@ -166,6 +173,9 @@ void HPL_pdpanrlT(HPL_T_panel* PANEL,
                 thread_size,
                 max_index,
                 max_value);
+      if(std::abs(max_value[0]) < std::numeric_limits<double>::epsilon()) {
+          ORNL_HPL_THROW_ZERO_PIVOT(max_value[0]);
+      }
 
     if(Nm1 > 1) {
 

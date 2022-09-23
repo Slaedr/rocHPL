@@ -83,8 +83,8 @@ static int deviceMalloc(HPL_T_grid*  GRID,
 }
 
 int HPL_pdmatgen(HPL_T_test* TEST,
-                 HPL_T_grid* GRID,
-                 HPL_T_palg* ALGO,
+                 const HPL_T_grid* GRID,
+                 const HPL_T_palg* ALGO,
                  HPL_T_pmat* mat,
                  const int   N,
                  const int   NB) {

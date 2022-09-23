@@ -59,8 +59,8 @@ void HPL_pdrandmat(const HPL_T_grid*,
                    const int);
 
 int HPL_pdmatgen(HPL_T_test*,
-                 HPL_T_grid*,
-                 HPL_T_palg*,
+                 const HPL_T_grid*,
+                 const HPL_T_palg*,
                  HPL_T_pmat*,
                  const int,
                  const int);
@@ -68,7 +68,6 @@ int HPL_pdmatgen(HPL_T_test*,
 void HPL_pdreadmat(const HPL_T_grid* const grid,
                    const int nrows_global,
                    const int ncols_global,
-                   const int block_size,
                    const std::string path_prefix,
                    HPL_T_pmat* const mat);
 
