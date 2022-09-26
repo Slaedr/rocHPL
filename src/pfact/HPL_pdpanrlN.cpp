@@ -117,8 +117,8 @@ void HPL_pdpanrlN(HPL_T_panel* PANEL,
    */
   HPL_dlocmax(
       PANEL, m, ii, jj, WORK, thread_rank, thread_size, max_index, max_value);
-  if(std::abs(max_value[0]) <= std::numeric_limits<double>::epsilon()) {
-      ORNL_HPL_THROW_ZERO_PIVOT(max_value[0]);
+  if(m > 0 && std::abs(max_value[0]) <= std::numeric_limits<double>::epsilon()) {
+      ORNL_HPL_THROW_ZERO_PIVOT(max_value[0], WORK[2]);
   }
 
   while(Nm1 >= 1) {
@@ -170,8 +170,8 @@ void HPL_pdpanrlN(HPL_T_panel* PANEL,
                 thread_size,
                 max_index,
                 max_value);
-      if(std::abs(max_value[0]) <= std::numeric_limits<double>::epsilon()) {
-          ORNL_HPL_THROW_ZERO_PIVOT(max_value[0]);
+      if(Mm1 > 0 && std::abs(max_value[0]) <= std::numeric_limits<double>::epsilon()) {
+          ORNL_HPL_THROW_ZERO_PIVOT(max_value[0], WORK[2]);
       }
 
     if(Nm1 > 1)
