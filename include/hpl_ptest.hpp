@@ -71,6 +71,10 @@ typedef struct HPL_S_test {
   int    kpass; /* # of tests passed */
   int    kskip; /* # of tests skipped */
   int    ktest; /* total number of tests */
+  /*
+   * Number of times to split the input block size.
+   */
+  int    refine_blocks;
   std::string matrix_dir;  //< Directory containing matrix files
   ornl_hpl::matrix_dir_type mdtype; //< Type of matrix directory structure
 } HPL_T_test;

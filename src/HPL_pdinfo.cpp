@@ -237,6 +237,7 @@ void HPL_pdinfo(int          ARGC,
   TEST->thrsh = 16.0;
   TEST->kfail = TEST->kpass = TEST->kskip = TEST->ktest = 0;
   TEST->mdtype = ornl_hpl::matrix_dir_type::row_block_dirs;
+  TEST->refine_blocks = 1;
 
   // parse settings
   int         _P = 1, _Q = 1, n = 45312, nb = 384;
@@ -284,7 +285,9 @@ void HPL_pdinfo(int          ARGC,
                "number                  \n"
                "--matrix_dir                       Prefix of location of "
                "matrix files (optional; if not specified, a random\n"
-               "matrix is generated.\n";
+               "matrix is generated.\n"
+               "--refine_blocks_factor             Number of times to "
+               "split the original block size NB.\n";
       }
       MPI_Barrier(MPI_COMM_WORLD);
       MPI_Finalize();
@@ -391,6 +394,10 @@ void HPL_pdinfo(int          ARGC,
       } else {
           ORNL_HPL_THROW_NOT_SUPPORTED("Matrix dir type " + arg);
       }
+      i++;
+    }
+    if(strcmp(ARGV[i], "-r") == 0 || strcmp(ARGV[i], "--refine_blocks_factor") == 0) {
+      TEST->refine_blocks = std::stoi(ARGV[i + 1]);
       i++;
     }
   }

@@ -8,6 +8,8 @@
  * ---------------------------------------------------------------------
  */
 
+#include <new>                  // For bad_alloc
+
 #include "hpl.hpp"
 #include <hip/hip_runtime_api.h>
 #include <cassert>
@@ -266,4 +268,37 @@ void HPL_pdmatfree(HPL_T_pmat* mat) {
   }
 
   rocblas_destroy_handle(handle);
+}
+
+void HPL_pdmatprepare(HPL_T_test *const test, const HPL_T_palg *const algo,
+    const HPL_T_grid *const grid, const int N, const int orig_bs, HPL_T_pmat *const mat)
+{
+    if(test->matrix_dir.empty()) {
+        /*
+         * generate matrix and right-hand-side, [ A | b ] which is N by N+1.
+         */
+        HPL_pdrandmat(grid, N, N + 1, orig_bs, mat->dA, mat->ld, HPL_ISEED);
+    } else {
+        // Read matrix from files
+        HPL_T_pmat initial_mat;
+        int ierr = HPL_pdmatgen(test, grid, algo, &initial_mat, N, orig_bs);
+        if(ierr != HPL_SUCCESS) {
+            HPL_pdmatfree(&initial_mat);
+            throw std::bad_alloc();
+        }
+
+        HPL_ptimer(HPL_TIMING_IO);
+        HPL_pdreadmat(grid, N, N+1, test->matrix_dir, test->mdtype, &initial_mat);
+        HPL_ptimer(HPL_TIMING_IO);
+
+        if(test->refine_blocks > 1) {
+            split_blocks(test, algo, grid, &initial_mat, test->refine_blocks,
+                         mat);
+            HPL_pdmatfree(&initial_mat);
+        }
+        else {
+            HPL_pdmatfree(mat);
+            *mat = initial_mat;
+        }
+    }
 }

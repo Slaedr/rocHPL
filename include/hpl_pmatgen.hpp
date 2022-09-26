@@ -79,6 +79,9 @@ template <typename scalar>
 void device_copy_2d_block(size_t source_ld, int nrows, int ncols, const scalar *source,
                           size_t dest_ld, scalar *const dest);
 
+void HPL_pdmatprepare(HPL_T_test *test, const HPL_T_palg *algo,
+                      const HPL_T_grid *grid, int N, int orig_bs, HPL_T_pmat *mat);
+
 void HPL_gather_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const mat,
                          double *const hX);
 
@@ -87,6 +90,10 @@ void HPL_gather_write_solution(const HPL_T_grid *grid, const HPL_T_pmat *mat,
 
 void HPL_write_solution_by_blocks(const HPL_T_grid *grid, const HPL_T_pmat *mat,
                                   const std::string& matrix_dir);
+
+void split_blocks(HPL_T_test *test, const HPL_T_palg *algo,
+                  const HPL_T_grid *grid, const HPL_T_pmat *origmat, int split_factor,
+                  HPL_T_pmat *mat);
 
 void HPL_pdmatfree(HPL_T_pmat*);
 

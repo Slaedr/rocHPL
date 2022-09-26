@@ -65,7 +65,7 @@ void HPL_pdtest(HPL_T_test* TEST,
  *         N must be at least zero.
  *
  * NB      (global input)                const int
- *         On entry,  NB specifies the blocking factor used to partition
+ *         On entry,  NB specifies the (initial) blocking factor used to partition
  *         and distribute the matrix A. NB must be larger than one.
  *
  * ---------------------------------------------------------------------
@@ -98,27 +98,20 @@ void HPL_pdtest(HPL_T_test* TEST,
    */
   ierr = HPL_pdmatgen(TEST, GRID, ALGO, &mat, N, NB);
 
+  // TODO: Catch bad_alloc instead
   if(ierr != HPL_SUCCESS) {
     (TEST->kskip)++;
     HPL_pdmatfree(&mat);
     return;
   }
 
+  const int new_NB = NB / TEST->refine_blocks;
+
   /* Create row-swapping data type */
-  MPI_Type_contiguous(NB + 4, MPI_DOUBLE, &PDFACT_ROW);
+  MPI_Type_contiguous(new_NB+4, MPI_DOUBLE, &PDFACT_ROW);
   MPI_Type_commit(&PDFACT_ROW);
 
-  if(TEST->matrix_dir.empty()) {
-      /*
-       * generate matrix and right-hand-side, [ A | b ] which is N by N+1.
-       */
-      HPL_pdrandmat(GRID, N, N + 1, NB, mat.dA, mat.ld, HPL_ISEED);
-  } else {
-      // Read matrix from files
-      HPL_ptimer(HPL_TIMING_IO);
-      HPL_pdreadmat(GRID, N, N+1, TEST->matrix_dir, TEST->mdtype, &mat);
-      HPL_ptimer(HPL_TIMING_IO);
-  }
+  HPL_pdmatprepare(TEST, ALGO, GRID, N, NB, &mat);
 
   /*
    * Solve linear system
@@ -195,7 +188,7 @@ void HPL_pdtest(HPL_T_test* TEST,
                   cpfact,
                   ALGO->nbmin,
                   N,
-                  NB,
+                  new_NB,
                   nprow,
                   npcol,
                   wtime[0],
@@ -321,21 +314,15 @@ void HPL_pdtest(HPL_T_test* TEST,
    * x, and norm inf of b - A x. Display residual checks.
    */
   //HPL_pdrandmat(GRID, N, N + 1, NB, mat.dA, mat.ld, HPL_ISEED);
-  if(TEST->matrix_dir.empty()) {
-      HPL_pdrandmat(GRID, N, N + 1, NB, mat.dA, mat.ld, HPL_ISEED);
-  } else {
-      HPL_ptimer(HPL_TIMING_IO);
-      HPL_pdreadmat(GRID, N, N+1, TEST->matrix_dir, TEST->mdtype, &mat);
-      HPL_ptimer(HPL_TIMING_IO);
-  }
+  HPL_pdmatprepare(TEST, ALGO, GRID, N, NB, &mat);
 
-  Anorm1 = HPL_pdlange(GRID, HPL_NORM_1, N, N, NB, mat.dA, mat.ld);
-  AnormI = HPL_pdlange(GRID, HPL_NORM_I, N, N, NB, mat.dA, mat.ld);
+  Anorm1 = HPL_pdlange(GRID, HPL_NORM_1, N, N, new_NB, mat.dA, mat.ld);
+  AnormI = HPL_pdlange(GRID, HPL_NORM_I, N, N, new_NB, mat.dA, mat.ld);
   /*
    * Because x is distributed in process rows, switch the norms
    */
-  XnormI = HPL_pdlange(GRID, HPL_NORM_1, 1, N, NB, mat.dX, 1);
-  Xnorm1 = HPL_pdlange(GRID, HPL_NORM_I, 1, N, NB, mat.dX, 1);
+  XnormI = HPL_pdlange(GRID, HPL_NORM_1, 1, N, new_NB, mat.dX, 1);
+  Xnorm1 = HPL_pdlange(GRID, HPL_NORM_I, 1, N, new_NB, mat.dX, 1);
   /*
    * If I am in the col that owns b, (1) compute local BnormI, (2) all_reduce to
    * find the max (in the col). Then (3) broadcast along the rows so that every
@@ -344,12 +331,12 @@ void HPL_pdtest(HPL_T_test* TEST,
    */
 
   // Bptr  = Mptr( mat.A , 0, nq, mat.ld );
-  size_t BptrBytes = Mmax(mat.nq, mat.ld) * sizeof(double);
+  const size_t BptrBytes = Mmax(mat.nq, mat.ld) * sizeof(double);
   Bptr             = (double*)malloc(BptrBytes);
 
-  nq    = HPL_numroc(N, NB, NB, mycol, 0, npcol);
+  nq    = HPL_numroc(N, new_NB, new_NB, mycol, 0, npcol);
   dBptr = Mptr(mat.dA, 0, nq, mat.ld);
-  if(mycol == HPL_indxg2p(N, NB, NB, 0, npcol)) {
+  if(mycol == HPL_indxg2p(N, new_NB, new_NB, 0, npcol)) {
     if(mat.mp > 0) {
       // int id = HPL_idamax( mat.mp, Bptr, 1);
       // BnormI = Bptr[id];
@@ -369,7 +356,7 @@ void HPL_pdtest(HPL_T_test* TEST,
   (void)HPL_broadcast((void*)(&BnormI),
                       1,
                       HPL_DOUBLE,
-                      HPL_indxg2p(N, NB, NB, 0, npcol),
+                      HPL_indxg2p(N, new_NB, new_NB, 0, npcol),
                       GRID->row_comm);
   /*
    * If I own b, compute ( b - A x ) and ( - A x ) otherwise
@@ -379,7 +366,7 @@ void HPL_pdtest(HPL_T_test* TEST,
   // chunk the nq columns to compute the full dgemv
   const int nq_chunk = std::numeric_limits<int>::max() / (mat.ld);
 
-  if(mycol == HPL_indxg2p(N, NB, NB, 0, npcol)) {
+  if(mycol == HPL_indxg2p(N, new_NB, new_NB, 0, npcol)) {
     const double one  = 1.0;
     const double mone = -1.0;
 
@@ -449,7 +436,7 @@ void HPL_pdtest(HPL_T_test* TEST,
    * Compute || b - A x ||_oo
    */
   hipMemcpy(dBptr, Bptr, mat.mp * sizeof(double), hipMemcpyHostToDevice);
-  resid0 = HPL_pdlange(GRID, HPL_NORM_I, N, 1, NB, dBptr, mat.ld);
+  resid0 = HPL_pdlange(GRID, HPL_NORM_I, N, 1, new_NB, dBptr, mat.ld);
 
   // Write solution if needed
   if(!TEST->matrix_dir.empty()) {
