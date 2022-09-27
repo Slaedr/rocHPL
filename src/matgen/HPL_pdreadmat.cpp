@@ -204,6 +204,7 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
             << std::endl;
     }
     desc_stream.close();
+    MPI_Barrier(grid->all_comm);
     const int n_total_cols = n_total_rows;
     const int block_size = mat->nb;
 
