@@ -18,6 +18,9 @@
 #include <iostream>
 #include <cstdio>
 #include <cstring>
+#include <string>
+
+#include "hpl_exceptions.hpp"
 
 void HPL_pdinfo(int          ARGC,
                 char**       ARGV,
@@ -233,6 +236,7 @@ void HPL_pdinfo(int          ARGC,
   TEST->epsil = 2.0e-16;
   TEST->thrsh = 16.0;
   TEST->kfail = TEST->kpass = TEST->kskip = TEST->ktest = 0;
+  TEST->mdtype = ornl_hpl::matrix_dir_type::row_block_dirs;
 
   // parse settings
   int         _P = 1, _Q = 1, n = 45312, nb = 384;
@@ -376,6 +380,17 @@ void HPL_pdinfo(int          ARGC,
     }
     if(strcmp(ARGV[i], "-m") == 0 || strcmp(ARGV[i], "--matrix_dir") == 0) {
       TEST->matrix_dir = ARGV[i + 1];
+      i++;
+    }
+    if(strcmp(ARGV[i], "--matrix_dir_type") == 0) {
+      std::string arg = ARGV[i+1];
+      if(arg == "flat") {
+          TEST->mdtype = ornl_hpl::matrix_dir_type::flat;
+      } else if (arg == "row_block_dirs") {
+          TEST->mdtype = ornl_hpl::matrix_dir_type::row_block_dirs;
+      } else {
+          ORNL_HPL_THROW_NOT_SUPPORTED("Matrix dir type " + arg);
+      }
       i++;
     }
   }

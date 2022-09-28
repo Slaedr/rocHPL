@@ -39,6 +39,30 @@
  * Data Structures
  * ---------------------------------------------------------------------
  */
+
+namespace ornl_hpl {
+
+/**
+ * Type of directory structure from which matrix blocks are read,
+ * if applicable.
+ *
+ * \sa HPL_pdreadmat
+ */
+enum class matrix_dir_type {
+    /**
+     * All matrix blocks are in one directory, named as A_i_j.npy where
+     * i and j are row-block and column-block indices.
+     */
+    flat,
+    /**
+     * Matrix blocks belonging to row block i are stored in a subdirectory
+     * named row_i (where i is written always using 5 characters).
+     */
+    row_block_dirs
+};
+
+}
+
 typedef struct HPL_S_test {
   double epsil; /* epsilon machine */
   double thrsh; /* threshold */
@@ -48,6 +72,7 @@ typedef struct HPL_S_test {
   int    kskip; /* # of tests skipped */
   int    ktest; /* total number of tests */
   std::string matrix_dir;  //< Directory containing matrix files
+  ornl_hpl::matrix_dir_type mdtype; //< Type of matrix directory structure
 } HPL_T_test;
 
 /*

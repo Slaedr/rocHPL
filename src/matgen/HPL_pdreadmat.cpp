@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <sstream>
 
 #include <cnpy.h>
 
@@ -181,6 +182,12 @@ void read_vector_redundant(const int ibrow, const cnpy::NpyArray& arr,
     hipHostFree(btemp);
 }
 
+namespace {
+
+std::string get_matrix_file_name(int ibrow, int jbcol, ornl_hpl::matrix_dir_type mdtype);
+
+}
+
 /*
  * The block size is fixed to that provided by the input.
  * The number of processors need not be the same as the number of blocks;
@@ -190,6 +197,7 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
                    const int nrows_global,
                    const int ncols_global,
                    const std::string path_prefix,
+                   const ornl_hpl::matrix_dir_type mdtype,
                    HPL_T_pmat* const mat)
 {
     const std::string desc_file = path_prefix + "/desc.txt";
@@ -236,8 +244,9 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
 
     for(int ibrow = grid->myrow; ibrow < n_block_rows; ibrow += grid->nprow) {
         for(int jbcol = grid->mycol; jbcol < n_block_cols; jbcol += grid->npcol) {
-            const std::string path = path_prefix + "/A_" + std::to_string(ibrow) + "_"
-                + std::to_string(jbcol) + ".npy";
+            //const std::string path = path_prefix + "/A_" + std::to_string(ibrow) + "_"
+            //    + std::to_string(jbcol) + ".npy";
+            const std::string path = path_prefix + get_matrix_file_name(ibrow, jbcol, mdtype);
             cnpy::NpyArray arr = cnpy::npy_load(path);
             if(arr.word_size == 4) {
                 if(ibrow == 0 && jbcol == 0) {
@@ -279,10 +288,14 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
     }
 }
 
+namespace {
+
 template <typename scalar>
 void copy_blocks(const HPL_T_grid *const grid, const HPL_T_pmat *const mat,
     const scalar *const local_x, const int remote_proc, const int remote_size,
     scalar *const global_x);
+
+}
 
 void HPL_gather_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const mat,
                          double *const hX)
@@ -386,14 +399,38 @@ void HPL_gather_write_solution(const HPL_T_grid *const grid, const HPL_T_pmat *c
     }
 }
 
+namespace {
+
+std::string get_matrix_file_name(int ibrow, int jbcol, ornl_hpl::matrix_dir_type mdtype)
+{
+    if(mdtype == ornl_hpl::matrix_dir_type::row_block_dirs) {
+        //std::stringstream str;
+        //str << "row_" << std::setw(5) << std::setfill('0') << ibrow
+        //    << "/A_" << jbcol << ".npy";
+        //std::string path = str.str();
+        std::string path = "/row_" + std::to_string(ibrow) + "/A_" + std::to_string(ibrow)
+            + "_" + std::to_string(jbcol) + ".npy";
+        return path;
+    } else if(mdtype == ornl_hpl::matrix_dir_type::flat) {
+        std::string path = "/A_" + std::to_string(ibrow) + "_" + std::to_string(jbcol)
+            + ".npy";
+        return path;
+    } else {
+        ORNL_HPL_THROW_NOT_SUPPORTED("Non-existent matrix directory layout.");
+    }
+}
+
 template <typename scalar>
-void copy_blocks(const HPL_T_grid *const grid, const HPL_T_pmat *const mat, const scalar *const local_x,
-                 const int remote_proc, const int remote_size, scalar *const global_x)
+void copy_blocks(const HPL_T_grid *const grid, const HPL_T_pmat *const mat,
+                 const scalar *const local_x, const int remote_proc, const int remote_size,
+                 scalar *const global_x)
 {
     constexpr int srcproc = 0;
     for(int lc = 0; lc < remote_size; lc += mat->nb) {
         const int gc = HPL_indxl2g(lc, mat->nb, mat->nb, remote_proc, srcproc, grid->npcol);
         std::copy(local_x + lc, local_x + lc + mat->nb, global_x + gc);
     }
+}
+
 }
 

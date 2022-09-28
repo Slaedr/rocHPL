@@ -58,7 +58,7 @@ if (NOT BLAS_LIBRARIES)
 endif()
 
 if (BLAS_LIBRARIES)
-  message(STATUS "Found BLAS: ${BLAS_LIBRARIES}")
+  message(STATUS "Found BLIS: ${BLAS_LIBRARIES}")
 else()
   # If we still havent found a blas library, maybe cmake will?
   find_package(BLAS REQUIRED)

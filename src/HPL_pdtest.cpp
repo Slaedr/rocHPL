@@ -115,7 +115,7 @@ void HPL_pdtest(HPL_T_test* TEST,
       HPL_pdrandmat(GRID, N, N + 1, NB, mat.dA, mat.ld, HPL_ISEED);
   } else {
       // Read matrix from files
-      HPL_pdreadmat(GRID, N, N+1, TEST->matrix_dir, &mat);
+      HPL_pdreadmat(GRID, N, N+1, TEST->matrix_dir, TEST->mdtype, &mat);
   }
 
   /*
@@ -321,7 +321,7 @@ void HPL_pdtest(HPL_T_test* TEST,
   if(TEST->matrix_dir.empty()) {
       HPL_pdrandmat(GRID, N, N + 1, NB, mat.dA, mat.ld, HPL_ISEED);
   } else {
-      HPL_pdreadmat(GRID, N, N+1, TEST->matrix_dir, &mat);
+      HPL_pdreadmat(GRID, N, N+1, TEST->matrix_dir, TEST->mdtype, &mat);
   }
 
   Anorm1 = HPL_pdlange(GRID, HPL_NORM_1, N, N, NB, mat.dA, mat.ld);

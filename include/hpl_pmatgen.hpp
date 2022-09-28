@@ -37,6 +37,7 @@
 #define HPL_DIVFAC 2147483648.0
 #define HPL_POW16 65536.0
 #define HPL_HALF 0.5
+
 /*
  * ---------------------------------------------------------------------
  * Function prototypes
@@ -65,11 +66,14 @@ int HPL_pdmatgen(HPL_T_test*,
                  const int,
                  const int);
 
-void HPL_pdreadmat(const HPL_T_grid* const grid,
-                   const int nrows_global,
-                   const int ncols_global,
-                   const std::string path_prefix,
-                   HPL_T_pmat* const mat);
+/**
+ * Read a matrix from files.
+ */
+void HPL_pdreadmat(const HPL_T_grid* grid,
+                   int nrows_global, int ncols_global,
+                   std::string path_prefix,
+                   ornl_hpl::matrix_dir_type mdtype,
+                   HPL_T_pmat* mat);
 
 template <typename scalar>
 void device_copy_2d_block(size_t source_ld, int nrows, int ncols, const scalar *source,
