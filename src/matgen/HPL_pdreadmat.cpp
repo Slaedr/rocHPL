@@ -96,7 +96,8 @@ void read_one_block(const int ibrow, const int jbcol, const cnpy::NpyArray& arr,
 
     const size_t bufsize = arr.shape[0]*arr.shape[1]*sizeof(scalar);
     scalar *atemp{};
-    hipHostMalloc(&atemp, bufsize);
+    //hipHostMalloc(&atemp, bufsize);
+    atemp = static_cast<scalar*>(malloc(bufsize));
 
     // transpose if necesssary
     if(arr.fortran_order) {
@@ -119,7 +120,8 @@ void read_one_block(const int ibrow, const int jbcol, const cnpy::NpyArray& arr,
             atemp, arr.shape[0]*sizeof(scalar), block_size*sizeof(scalar), block_size,
             hipMemcpyHostToDevice);
 
-    hipHostFree(atemp);
+    //hipHostFree(atemp);
+    free(atemp);
 }
 
 template <typename scalar, typename file_scalar>
@@ -212,7 +214,7 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
             << std::endl;
     }
     desc_stream.close();
-    MPI_Barrier(grid->all_comm);
+    //MPI_Barrier(grid->all_comm);
     const int n_total_cols = n_total_rows;
     const int block_size = mat->nb;
 
@@ -244,8 +246,6 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
 
     for(int ibrow = grid->myrow; ibrow < n_block_rows; ibrow += grid->nprow) {
         for(int jbcol = grid->mycol; jbcol < n_block_cols; jbcol += grid->npcol) {
-            //const std::string path = path_prefix + "/A_" + std::to_string(ibrow) + "_"
-            //    + std::to_string(jbcol) + ".npy";
             const std::string path = path_prefix + get_matrix_file_name(ibrow, jbcol, mdtype);
             cnpy::NpyArray arr = cnpy::npy_load(path);
             if(arr.word_size == 4) {
@@ -267,6 +267,11 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
         }
     }
 
+    MPI_Barrier(grid->all_comm);
+    if(grid->iam == 0) {
+        printf("Read all matrix blocks.\n"); fflush(stdout);
+    }
+
     // b vector
     // NOTE: For now, we assume b is stored in a single file and redundantly load it on all
     //  processes in the proc-column that contains the last matrix column
@@ -274,6 +279,16 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
         // If this proc-column contains the (N+1)th column, read b
         const std::string b_path = path_prefix + "/b.npy";
         cnpy::NpyArray arr = cnpy::npy_load(b_path);
+        {
+            if(arr.shape[0] != block_size * n_block_rows) {
+                std::string err = " Reading b vector: " + std::to_string(arr.shape[0])
+                    + " vs " + std::to_string(block_size * n_block_rows);
+                ORNL_HPL_THROW_INCONSISTENT_BLOCK_SIZE(err);
+            }
+            if(arr.shape.size() != 1 && arr.shape[1] != 1) {
+                throw std::runtime_error("Multiple RHS not supported!");
+            }
+        }
         for(int ibrow = grid->myrow; ibrow < n_block_rows; ibrow += grid->nprow) {
             //
             if(arr.word_size == 4) {
@@ -285,6 +300,11 @@ void HPL_pdreadmat(const HPL_T_grid* const grid,
                         "b-vector file has unsupported scalar type!");
             }
         }
+    }
+
+    MPI_Barrier(grid->all_comm);
+    if(grid->iam == 0) {
+        printf("Read all vector blocks.\n"); fflush(stdout);
     }
 }
 

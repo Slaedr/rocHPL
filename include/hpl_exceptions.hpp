@@ -19,6 +19,18 @@ public:
 #define ORNL_HPL_THROW_UNSUPPORTED_SCALAR_TYPE(error_msg) \
     throw ornl_hpl::UnsupportedScalarType(__FILE__, __LINE__, error_msg)
 
+class InconsistentBlockSize : public std::runtime_error
+{
+public:
+    InconsistentBlockSize(const std::string file, int line, const std::string what)
+        : std::runtime_error("ORNL HPL: Inconsistent block size at " + file + std::to_string(line)
+                + ": " + what)
+    { }
+};
+
+#define ORNL_HPL_THROW_INCONSISTENT_BLOCK_SIZE(error_msg) \
+    throw ornl_hpl::InconsistentBlockSize(__FILE__, __LINE__, error_msg)
+
 class NotSupported : public std::runtime_error
 {
 public:

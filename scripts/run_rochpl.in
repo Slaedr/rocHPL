@@ -93,7 +93,12 @@ p=-1
 q=-1
 N=45312
 NB=384
+<<<<<<< HEAD
 frac=0.6
+=======
+frac=0.7
+matrix_dir_type=row_block_dirs
+>>>>>>> c3b33e3 (added ability to read from two different directory structures)
 
 filename=HPL.dat
 inputfile=false
@@ -111,7 +116,7 @@ oversubscribe=true
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,matrix_dir:,help,version, --options hP:Q:p:q:N:i:f: -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,matrix_dir:,matrix_dir_type:,help,version, --options hP:Q:p:q:N:i:f: -- "$@")
 else
   echo "Need a new version of getopt"
   exit 1
@@ -160,6 +165,9 @@ while true; do
     --matrix_dir)
         matrix_dir_name=${2}
         matrixfiles=true
+        shift 2 ;;
+    --matrix_dir_type)
+        matrix_dir_type=${2}
         shift 2 ;;
     -i)
         filename=${2}
@@ -412,7 +420,7 @@ else
 fi
 
 if [[ "${matrixfiles}" == true ]]; then
-    rochpl_args="${rochpl_args} --matrix_dir ${matrix_dir_name}"
+    rochpl_args="${rochpl_args} --matrix_dir ${matrix_dir_name} --matrix_dir_type ${matrix_dir_type}"
 fi
 
 #run

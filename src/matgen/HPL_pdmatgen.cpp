@@ -133,6 +133,7 @@ int HPL_pdmatgen(HPL_T_test* TEST,
   if((myrow == 0) && (mycol == 0)) {
     printf("Local matrix size = %g GBs\n",
            ((double)numbytes) / (1024 * 1024 * 1024));
+    fflush(stdout);
   }
 #endif
 
@@ -146,6 +147,12 @@ int HPL_pdmatgen(HPL_T_test* TEST,
               "Device memory allocation failed for for A and b. Skip.");
     return HPL_FAILURE;
   }
+
+#ifdef HPL_VERBOSE_PRINT
+  if((myrow == 0) && (mycol == 0))  {
+      printf("X vector allocation on GPU: %g GB.\n", ((double)mat->nq*sizeof(double)) / 1024 / 1024 / 1024);
+  }
+#endif
 
   // seperate space for X vector
   if(deviceMalloc(GRID, (void**)&(mat->dX), mat->nq * sizeof(double), info) !=
