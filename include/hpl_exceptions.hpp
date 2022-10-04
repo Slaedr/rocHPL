@@ -7,6 +7,24 @@
 
 namespace ornl_hpl {
 
+class BadAlloc : public std::runtime_error
+{
+public:
+    BadAlloc(const std::string file, int line, const std::string device)
+        : std::runtime_error("ORNL HPL: Failed alloc on " + device
+                + " at " + file + std::to_string(line) + ": ")
+    { }
+};
+
+#define ORNL_HPL_THROW_BAD_ALLOC(device) \
+    throw ornl_hpl::BadAlloc(__FILE__, __LINE__, device)
+
+#define ORNL_HPL_CHECK_ALLOC(_ptr, _device) \
+    if(!(_ptr)) { \
+        throw ornl_hpl::BadAlloc(__FILE__, __LINE__, _device); \
+    } \
+    static_assert(true, "Prevent error message")
+
 class UnsupportedScalarType : public std::runtime_error
 {
 public:

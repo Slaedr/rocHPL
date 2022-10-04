@@ -325,7 +325,9 @@ void HPL_gather_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const m
     const int local_nq = mat->nq-1; // account for extra column
     
     scalar *hlocX{};
-    hipHostMalloc(&hlocX, local_nq * sizeof(scalar));
+    //hipHostMalloc(&hlocX, local_nq * sizeof(scalar));
+    hlocX = static_cast<scalar*>(malloc(local_nq * sizeof(scalar)));
+    ORNL_HPL_CHECK_ALLOC(hlocX, "host");
     hipMemcpy(hlocX, mat->dX, local_nq * sizeof(scalar), hipMemcpyDeviceToHost);
     if(grid->mycol != 0) {
         MPI_Send(hlocX, local_nq, MPI_DOUBLE, root, 1, grid->row_comm);
@@ -354,7 +356,9 @@ void HPL_gather_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const m
 
             scalar *hremX{};
             if(jqcol != root) {
-                hipHostMalloc(&hremX, remote_nq * sizeof(scalar));
+                //hipHostMalloc(&hremX, remote_nq * sizeof(scalar));
+                hremX = static_cast<scalar*>(malloc(remote_nq * sizeof(scalar)));
+                ORNL_HPL_CHECK_ALLOC(hremX, "host");
                 MPI_Recv(hremX, remote_nq, MPI_DOUBLE, jqcol, 1, grid->row_comm, MPI_STATUS_IGNORE);
             } else {
                 hremX = hlocX;
@@ -375,12 +379,14 @@ void HPL_gather_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const m
             copy_blocks(grid, mat, hremX, jqcol, remote_nq, hX);
 
             if(jqcol != root) {
-                hipHostFree(hremX);
+                //hipHostFree(hremX);
+                free(hremX);
             }
         }
     }
 
-    hipHostFree(hlocX);
+    //hipHostFree(hlocX);
+    free(hlocX);
 }
 
 void HPL_gather_write_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const mat,
