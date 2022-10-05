@@ -15,7 +15,7 @@
 
 const int max_nthreads = 128;
 
-static int Malloc(HPL_T_grid*  GRID,
+static int Malloc(const HPL_T_grid*  GRID,
                   void**       ptr,
                   const size_t bytes,
                   int          info[3]) {
@@ -38,7 +38,7 @@ static int Malloc(HPL_T_grid*  GRID,
   }
 }
 
-static int hostMalloc(HPL_T_grid*  GRID,
+static int hostMalloc(const HPL_T_grid*  GRID,
                       void**       ptr,
                       const size_t bytes,
                       int          info[3]) {
@@ -60,7 +60,7 @@ static int hostMalloc(HPL_T_grid*  GRID,
   }
 }
 
-static int deviceMalloc(HPL_T_grid*  GRID,
+static int deviceMalloc(const HPL_T_grid*  GRID,
                         void**       ptr,
                         const size_t bytes,
                         int          info[3]) {
