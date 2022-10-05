@@ -349,6 +349,7 @@ void HPL_gather_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const m
     if(grid->mycol == root) {
         for(int jqcol = 0; jqcol < grid->npcol; jqcol++) {
             // For remote rank, compute nq
+            // Sure we don't need to subtract 1 below?
             const int remote_nq = HPL_numroc(mat->n, mat->nb, mat->nb, jqcol, 0, grid->npcol);
             if(remote_nq % mat->nb != 0) {
                 throw std::runtime_error("Invalid blocking during solution gather!");
@@ -423,6 +424,33 @@ void HPL_gather_write_solution(const HPL_T_grid *const grid, const HPL_T_pmat *c
             std::vector<size_t>{static_cast<size_t>(mat->n), 1});
         free(hX);
     }
+}
+
+void HPL_write_solution_by_blocks(const HPL_T_grid *const grid, const HPL_T_pmat *const mat,
+                               const std::string& matrix_dir)
+{
+    using scalar = double;
+    const int srcproc = 0;
+    const int bs = mat->nb;
+    const int nloccols = mat->nq-1; // account for extra column
+
+    if(grid->myrow != 0) {
+        return;
+    }
+
+    // copy local part to host
+    auto hX = static_cast<scalar*>(malloc(nloccols * sizeof(scalar)));
+    hipMemcpy(hX, mat->dX, nloccols * sizeof(scalar), hipMemcpyDeviceToHost);
+       
+    // iterate over local blocks
+    for(int jloc = 0; jloc < nloccols; jloc += bs) {
+        const int gl_col = HPL_indxl2g(jloc, bs, bs, grid->mycol, srcproc, grid->npcol);
+        const int gl_blockcol = gl_col / bs;
+        cnpy::npy_save(matrix_dir + "/solution/hpl/x_" + std::to_string(gl_blockcol) + ".npy",
+            hX + jloc, std::vector<size_t>{static_cast<size_t>(bs), 1});
+    }
+
+    free(hX);
 }
 
 namespace {

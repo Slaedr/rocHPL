@@ -448,7 +448,8 @@ void HPL_pdtest(HPL_T_test* TEST,
 
   // Gather and write solution if needed
   if(!TEST->matrix_dir.empty()) {
-      HPL_gather_write_solution(GRID, &mat, TEST->matrix_dir);
+      //HPL_gather_write_solution(GRID, &mat, TEST->matrix_dir);
+      HPL_write_solution_by_blocks(GRID, &mat, TEST->matrix_dir);
   }
 
   /*

@@ -21,6 +21,8 @@ public:
 
 #define ORNL_HPL_CHECK_ALLOC(_ptr, _device) \
     if(!(_ptr)) { \
+        printf("Bad alloc at %s:%d!\n", __FILE__, __LINE__); \
+        fflush(stdout); \
         throw ornl_hpl::BadAlloc(__FILE__, __LINE__, _device); \
     } \
     static_assert(true, "Prevent error message")

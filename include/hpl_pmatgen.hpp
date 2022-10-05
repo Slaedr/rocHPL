@@ -85,6 +85,9 @@ void HPL_gather_solution(const HPL_T_grid *const grid, const HPL_T_pmat *const m
 void HPL_gather_write_solution(const HPL_T_grid *grid, const HPL_T_pmat *mat,
                                const std::string& matrix_dir);
 
+void HPL_write_solution_by_blocks(const HPL_T_grid *grid, const HPL_T_pmat *mat,
+                                  const std::string& matrix_dir);
+
 void HPL_pdmatfree(HPL_T_pmat*);
 
 #endif
