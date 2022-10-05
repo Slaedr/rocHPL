@@ -93,12 +93,8 @@ p=-1
 q=-1
 N=45312
 NB=384
-<<<<<<< HEAD
 frac=0.6
-=======
-frac=0.7
 matrix_dir_type=row_block_dirs
->>>>>>> c3b33e3 (added ability to read from two different directory structures)
 
 filename=HPL.dat
 inputfile=false
