@@ -45,8 +45,8 @@ void split_blocks(HPL_T_test *const test, const HPL_T_palg *const algo,
             hipFree(d_buf);
 
             const int dest_rank = grid->order == HPL_ROW_MAJOR ?
-                loc_new_row * grid->npcol + loc_new_col :
-                loc_new_row + loc_new_col * grid->nprow;
+                new_proc_row * grid->npcol + new_proc_col :
+                new_proc_row + new_proc_col * grid->nprow;
             const int tag = gl_row + gl_col * origmat->n;
             // Send, and ye shall receive (in the next loop)
             MPI_Send(buf, block_size*block_size, datatype, dest_rank, tag, grid->all_comm);
@@ -74,8 +74,8 @@ void split_blocks(HPL_T_test *const test, const HPL_T_palg *const algo,
             hipMalloc(&d_buf, block_size*block_size*sizeof(scalar));
 
             const int source_rank = grid->order == HPL_ROW_MAJOR ?
-                loc_old_row * grid->npcol + loc_old_col :
-                loc_old_row + loc_old_col * grid->nprow;
+                old_proc_row * grid->npcol + old_proc_col :
+                old_proc_row + old_proc_col * grid->nprow;
             const int tag = gl_row + gl_col * origmat->n;
             MPI_Recv(buf, block_size*block_size, datatype, source_rank, tag, grid->all_comm,
                     MPI_STATUS_IGNORE);
