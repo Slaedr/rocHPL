@@ -294,8 +294,9 @@ void HPL_pdtest(HPL_T_test* TEST,
    */
   if(TEST->thrsh <= HPL_rzero) {
     (TEST->kpass)++;
-    HPL_pdmatfree(&mat);
-    return;
+    //HPL_pdmatfree(&mat);
+    //return;
+    HPL_fprintf(TEST->outfp, "Bad threshold value %g!\n", TEST->thrsh);
   }
   /*
    * Check info returned by solve
