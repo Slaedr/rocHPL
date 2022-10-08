@@ -91,6 +91,9 @@ void HPL_gather_write_solution(const HPL_T_grid *grid, const HPL_T_pmat *mat,
 void HPL_write_solution_by_blocks(const HPL_T_grid *grid, const HPL_T_pmat *mat,
                                   const std::string& matrix_dir);
 
+/**
+ * Allocate new matrix and fill it with split blocks using MPI comms.
+ */
 void split_blocks(HPL_T_test *test, const HPL_T_palg *algo,
                   const HPL_T_grid *grid, const HPL_T_pmat *origmat, int split_factor,
                   HPL_T_pmat *mat);

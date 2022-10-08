@@ -88,22 +88,12 @@ void HPL_pdtest(HPL_T_test* TEST,
   time_t     current_time_start, current_time_end;
 
   (void)HPL_grid_info(GRID, &nprow, &npcol, &myrow, &mycol);
-
-  /*
-   * Allocate matrix, right-hand-side, and vector solution x. [ A | b ] is
-   * N by N+1.  One column is added in every process column for the solve.
-   * The  result  however  is stored in a 1 x N vector replicated in every
-   * process row. In every process, A is lda * (nq+1), x is 1 * nq and the
-   * workspace is mp.
-   */
-  ierr = HPL_pdmatgen(TEST, GRID, ALGO, &mat, N, NB);
-
-  // TODO: Catch bad_alloc instead
-  if(ierr != HPL_SUCCESS) {
-    (TEST->kskip)++;
-    HPL_pdmatfree(&mat);
-    return;
-  }
+  
+  /* Create a rocBLAS handle */
+  rocblas_create_handle(&handle);
+  rocblas_set_pointer_mode(handle, rocblas_pointer_mode_host);
+  rocblas_initialize();
+  rocblas_set_stream(handle, computeStream);
 
   const int new_NB = NB / TEST->refine_blocks;
 
@@ -112,6 +102,12 @@ void HPL_pdtest(HPL_T_test* TEST,
   MPI_Type_commit(&PDFACT_ROW);
 
   HPL_pdmatprepare(TEST, ALGO, GRID, N, NB, &mat);
+  //if((myrow == 0) && (mycol == 0)) {
+  //    printf("Mat has %d rows, %d local rows, %d local cols, %d stride, %d block size\n",
+  //            mat.n, mat.mp, mat.nq, mat.ld, mat.nb);
+  //    printf("Mat has pointers: A = %lu, dA = %lu, dX = %lu, W = %lu, dW = %lu.\n",
+  //            mat.A, mat.dA, mat.dX, mat.W, mat.dW);
+  //}
 
   /*
    * Solve linear system
@@ -535,4 +531,5 @@ void HPL_pdtest(HPL_T_test* TEST,
 
   if(Bptr) free(Bptr);
   HPL_pdmatfree(&mat);
+  rocblas_destroy_handle(handle);
 }

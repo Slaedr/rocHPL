@@ -118,12 +118,6 @@ int HPL_pdmatgen(HPL_T_test* TEST,
   mat->dW = nullptr;
   mat->W  = nullptr;
 
-  /* Create a rocBLAS handle */
-  rocblas_create_handle(&handle);
-  rocblas_set_pointer_mode(handle, rocblas_pointer_mode_host);
-  rocblas_initialize();
-  rocblas_set_stream(handle, computeStream);
-
   /*
    * Allocate dynamic memory
    */
@@ -267,13 +261,24 @@ void HPL_pdmatfree(HPL_T_pmat* mat) {
     mat->W = nullptr;
   }
 
-  rocblas_destroy_handle(handle);
 }
 
 void HPL_pdmatprepare(HPL_T_test *const test, const HPL_T_palg *const algo,
     const HPL_T_grid *const grid, const int N, const int orig_bs, HPL_T_pmat *const mat)
 {
     if(test->matrix_dir.empty()) {
+        /*
+         * Allocate matrix, right-hand-side, and vector solution x. [ A | b ] is
+         * N by N+1.  One column is added in every process column for the solve.
+         * The  result  however  is stored in a 1 x N vector replicated in every
+         * process row. In every process, A is lda * (nq+1), x is 1 * nq and the
+         * workspace is mp.
+         */
+        int ierr = HPL_pdmatgen(test, grid, algo, mat, N, orig_bs);
+        if(ierr != HPL_SUCCESS) {
+            HPL_pdmatfree(mat);
+            throw std::bad_alloc();
+        }
         /*
          * generate matrix and right-hand-side, [ A | b ] which is N by N+1.
          */
@@ -291,13 +296,20 @@ void HPL_pdmatprepare(HPL_T_test *const test, const HPL_T_palg *const algo,
         HPL_pdreadmat(grid, N, N+1, test->matrix_dir, test->mdtype, &initial_mat);
         HPL_ptimer(HPL_TIMING_IO);
 
-        if(test->refine_blocks > 1) {
-            split_blocks(test, algo, grid, &initial_mat, test->refine_blocks,
-                         mat);
+        // TODO: do this only for factors > 1
+        if(test->refine_blocks > 0) {
+            printf("Requested refine factor is %d. Refining from bs=%d to bs=%d.\n", test->refine_blocks,
+                orig_bs, orig_bs/test->refine_blocks);
+            //const int new_bs = orig_bs / test->refine_blocks;
+            //int ierr = HPL_pdmatgen(test, grid, algo, &mat, N, new_bs);
+            //if(ierr != HPL_SUCCESS) {
+            //    HPL_pdmatfree(&initial_mat);
+            //    throw std::bad_alloc();
+            //}
+            split_blocks(test, algo, grid, &initial_mat, test->refine_blocks, mat);
             HPL_pdmatfree(&initial_mat);
         }
         else {
-            HPL_pdmatfree(mat);
             *mat = initial_mat;
         }
     }
