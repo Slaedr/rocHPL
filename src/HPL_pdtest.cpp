@@ -115,7 +115,9 @@ void HPL_pdtest(HPL_T_test* TEST,
       HPL_pdrandmat(GRID, N, N + 1, NB, mat.dA, mat.ld, HPL_ISEED);
   } else {
       // Read matrix from files
+      HPL_ptimer(HPL_TIMING_IO);
       HPL_pdreadmat(GRID, N, N+1, TEST->matrix_dir, TEST->mdtype, &mat);
+      HPL_ptimer(HPL_TIMING_IO);
   }
 
   /*
@@ -213,7 +215,7 @@ void HPL_pdtest(HPL_T_test* TEST,
   HPL_ptimer_combine(GRID->all_comm,
                      HPL_AMAX_PTIME,
                      HPL_WALL_PTIME,
-                     HPL_TIMING_N,
+                     HPL_TIMING_FACTOR_N,
                      HPL_TIMING_BEG,
                      HPL_w);
   if((myrow == 0) && (mycol == 0)) {
@@ -311,8 +313,8 @@ void HPL_pdtest(HPL_T_test* TEST,
                 mat.info,
                 "skip");
     (TEST->kskip)++;
-    HPL_pdmatfree(&mat);
-    return;
+    //HPL_pdmatfree(&mat);
+    //return;
   }
   /*
    * Check computation, re-generate [ A | b ], compute norm 1 and inf of A and
@@ -322,7 +324,9 @@ void HPL_pdtest(HPL_T_test* TEST,
   if(TEST->matrix_dir.empty()) {
       HPL_pdrandmat(GRID, N, N + 1, NB, mat.dA, mat.ld, HPL_ISEED);
   } else {
+      HPL_ptimer(HPL_TIMING_IO);
       HPL_pdreadmat(GRID, N, N+1, TEST->matrix_dir, TEST->mdtype, &mat);
+      HPL_ptimer(HPL_TIMING_IO);
   }
 
   Anorm1 = HPL_pdlange(GRID, HPL_NORM_1, N, N, NB, mat.dA, mat.ld);
@@ -447,10 +451,12 @@ void HPL_pdtest(HPL_T_test* TEST,
   hipMemcpy(dBptr, Bptr, mat.mp * sizeof(double), hipMemcpyHostToDevice);
   resid0 = HPL_pdlange(GRID, HPL_NORM_I, N, 1, NB, dBptr, mat.ld);
 
-  // Gather and write solution if needed
+  // Write solution if needed
   if(!TEST->matrix_dir.empty()) {
       //HPL_gather_write_solution(GRID, &mat, TEST->matrix_dir);
+      HPL_ptimer(HPL_TIMING_IO);
       HPL_write_solution_by_blocks(GRID, &mat, TEST->matrix_dir);
+      HPL_ptimer(HPL_TIMING_IO);
   }
 
   /*
@@ -479,7 +485,7 @@ void HPL_pdtest(HPL_T_test* TEST,
                 " ...... ",
                 (resid1 < TEST->thrsh ? "PASSED" : "FAILED"));
 
-    if(resid1 >= TEST->thrsh) {
+    //if(resid1 >= TEST->thrsh) {
       HPL_fprintf(TEST->outfp,
                   "%s%18.6f\n",
                   "||Ax-b||_oo  . . . . . . . . . . . . . . . . . = ",
@@ -504,7 +510,7 @@ void HPL_pdtest(HPL_T_test* TEST,
                   "%s%18.6f\n",
                   "||b||_oo . . . . . . . . . . . . . . . . . . . = ",
                   BnormI);
-    }
+    //}
 
 #ifdef HPL_PROGRESS_REPORT
     printf("Final abs residual norm = %e.\n", resid0);
@@ -516,6 +522,29 @@ void HPL_pdtest(HPL_T_test* TEST,
       printf("Residual Check: FAILED \n");
 #endif
   }
+
+#ifdef HPL_DETAILED_TIMING
+  HPL_ptimer_combine(GRID->all_comm,
+                     HPL_AMAX_PTIME,
+                     HPL_WALL_PTIME,
+                     HPL_TIMING_IO_N,
+                     HPL_TIMING_BEG + HPL_TIMING_FACTOR_N,
+                     HPL_w);
+  if((myrow == 0) && (mycol == 0)) {
+    HPL_fprintf(TEST->outfp,
+                "%s%s\n",
+                "--VVV--VVV--VVV--VVV--VVV--VVV--VVV--V",
+                "VV--VVV--VVV--VVV--VVV--VVV--VVV--VVV-");
+
+    /*
+     * All I/O
+     */
+    if(HPL_w[HPL_TIMING_IO - HPL_TIMING_BEG] > HPL_rzero)
+      HPL_fprintf(TEST->outfp,
+                  "Max aggregated wall time for I/O  . : %18.2f\n",
+                  HPL_w[HPL_TIMING_IO - HPL_TIMING_BEG]);
+  }
+#endif
 
   if(Bptr) free(Bptr);
   HPL_pdmatfree(&mat);

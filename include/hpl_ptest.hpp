@@ -89,7 +89,9 @@ typedef struct HPL_S_test {
  * ---------------------------------------------------------------------
  */
 #define HPL_TIMING_BEG 11    /* timer 0 reserved, used by main */
-#define HPL_TIMING_N 8       /* number of timers defined below */
+#define HPL_TIMING_N 12      /* number of timers defined below */
+#define HPL_TIMING_FACTOR_N 8 /* number of timers for factorization */
+#define HPL_TIMING_IO_N 4
 #define HPL_TIMING_RPFACT 11 /* starting from here, contiguous */
 #define HPL_TIMING_PFACT 12
 #define HPL_TIMING_MXSWP 13
@@ -98,6 +100,10 @@ typedef struct HPL_S_test {
 #define HPL_TIMING_LASWP 16
 #define HPL_TIMING_UPDATE 17
 #define HPL_TIMING_PTRSV 18
+#define HPL_TIMING_IO 19
+#define HPL_TIMING_IO_MAT 20
+#define HPL_TIMING_IO_VEC_READ 21
+#define HPL_TIMING_IO_VEC_WRITE 22
 /*
  * ---------------------------------------------------------------------
  * Function prototypes
