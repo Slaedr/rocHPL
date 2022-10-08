@@ -407,5 +407,6 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
   /*
    * Solve upper triangular system
    */
-  if(A->info == 0) HPL_pdtrsv(GRID, A);
+  //if(A->info == 0)
+  HPL_pdtrsv(GRID, A);
 }

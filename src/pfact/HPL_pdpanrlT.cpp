@@ -128,11 +128,11 @@ void HPL_pdpanrlT(HPL_T_panel* PANEL,
      */
     if(thread_rank == 0) {
       HPL_pdmxswp(PANEL, m, ii, jj, WORK);
-      if(std::abs(WORK[0]) < std::numeric_limits<double>::epsilon()) {
-          printf("Zero pivot %g at col %d\n", WORK[0], static_cast<int>(WORK[2]));
-          fflush(stdout);
-          ORNL_HPL_THROW_ZERO_PIVOT(WORK[0], WORK[2]);
-      }
+      //if(std::abs(WORK[0]) < std::numeric_limits<double>::epsilon()) {
+      //    printf("Zero pivot %g at col %d\n", WORK[0], static_cast<int>(WORK[2]));
+      //    fflush(stdout);
+      //    ORNL_HPL_THROW_ZERO_PIVOT(WORK[0], WORK[2]);
+      //}
       HPL_dlocswpT(PANEL, ii, jj, WORK);
     }
 
@@ -211,11 +211,11 @@ void HPL_pdpanrlT(HPL_T_panel* PANEL,
    */
   if(thread_rank == 0) {
     HPL_pdmxswp(PANEL, m, ii, jj, WORK);
-    if(std::abs(WORK[0]) < std::numeric_limits<double>::epsilon()) {
-        printf("Zero pivot %g at col %d\n", WORK[0], static_cast<int>(WORK[2]));
-        fflush(stdout);
-        ORNL_HPL_THROW_ZERO_PIVOT(WORK[0], WORK[2]);
-    }
+    //if(std::abs(WORK[0]) < std::numeric_limits<double>::epsilon()) {
+    //    printf("Zero pivot %g at col %d\n", WORK[0], static_cast<int>(WORK[2]));
+    //    fflush(stdout);
+    //    ORNL_HPL_THROW_ZERO_PIVOT(WORK[0], WORK[2]);
+    //}
     HPL_dlocswpT(PANEL, ii, jj, WORK);
   }
 
