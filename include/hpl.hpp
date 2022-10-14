@@ -24,8 +24,8 @@
 #define HPL_NO_DETAILED_TIMING
 #endif
 
-#undef HPL_USE_COLLECTIVES
-//#define HPL_USE_COLLECTIVES
+//#undef HPL_USE_COLLECTIVES
+#define HPL_USE_COLLECTIVES
 
 /*
  * ---------------------------------------------------------------------

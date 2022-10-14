@@ -76,7 +76,7 @@ void HPL_pdtest(HPL_T_test* TEST,
 #ifdef HPL_DETAILED_TIMING
   double HPL_w[HPL_TIMING_N];
 #endif
-  HPL_T_pmat mat;
+  HPL_T_pmat mat, initial_mat;
   double     wtime[1];
   int        ierr;
   double     Anorm1, AnormI, Gflops, Xnorm1, XnormI, BnormI, resid0, resid1;
@@ -96,17 +96,47 @@ void HPL_pdtest(HPL_T_test* TEST,
   rocblas_set_stream(handle, computeStream);
 
   const int new_NB = NB / TEST->refine_blocks;
+  //if(new_NB != NB) {
+      if(myrow == 0 && mycol == 0) {
+          printf("Original block size = %d, actual block size to use will be %d.\n", NB, new_NB);
+      }
+  //}
 
   /* Create row-swapping data type */
   MPI_Type_contiguous(new_NB+4, MPI_DOUBLE, &PDFACT_ROW);
   MPI_Type_commit(&PDFACT_ROW);
+        
+  /*
+   * Allocate matrix, right-hand-side, and vector solution x. [ A | b ] is
+   * N by N+1.  One column is added in every process column for the solve.
+   * The  result  however  is stored in a 1 x N vector replicated in every
+   * process row. In every process, A is lda * (nq+1), x is 1 * nq and the
+   * workspace is mp.
+   */
+  ierr = HPL_pdmatgen(TEST, GRID, ALGO, &mat, N, new_NB);
+  if(ierr != HPL_SUCCESS) {
+      HPL_pdmatfree(&mat);
+      throw std::bad_alloc();
+  }
+  //if(new_NB != NB) {
+      ierr = HPL_pdmatgen(TEST, GRID, ALGO, &initial_mat, N, NB);
+      if(ierr != HPL_SUCCESS) {
+          HPL_pdmatfree(&initial_mat);
+          throw std::bad_alloc();
+      }
+  //}
 
-  HPL_pdmatprepare(TEST, ALGO, GRID, N, NB, &mat);
-  //if((myrow == 0) && (mycol == 0)) {
-  //    printf("Mat has %d rows, %d local rows, %d local cols, %d stride, %d block size\n",
-  //            mat.n, mat.mp, mat.nq, mat.ld, mat.nb);
-  //    printf("Mat has pointers: A = %lu, dA = %lu, dX = %lu, W = %lu, dW = %lu.\n",
-  //            mat.A, mat.dA, mat.dX, mat.W, mat.dW);
+  HPL_pdmatprepare(TEST, ALGO, GRID, N, NB, &initial_mat, &mat);
+  if((myrow == 0) && (mycol == 0)) {
+      printf("Mat has %d rows, %d local rows, %d local cols, %d stride, %d block size\n",
+              mat.n, mat.mp, mat.nq, mat.ld, mat.nb);
+  }
+
+  //if(new_NB != NB) {
+      HPL_pdmatfree(&initial_mat);
+      if((myrow == 0) && (mycol == 0)) {
+          printf("Deleted initial mat.\n"); fflush(stdout);
+      }
   //}
 
   /*
@@ -309,8 +339,19 @@ void HPL_pdtest(HPL_T_test* TEST,
    * Check computation, re-generate [ A | b ], compute norm 1 and inf of A and
    * x, and norm inf of b - A x. Display residual checks.
    */
-  //HPL_pdrandmat(GRID, N, N + 1, NB, mat.dA, mat.ld, HPL_ISEED);
-  HPL_pdmatprepare(TEST, ALGO, GRID, N, NB, &mat);
+  //if(new_NB != NB) {
+      ierr = HPL_pdmatgen(TEST, GRID, ALGO, &initial_mat, N, NB);
+      if(ierr != HPL_SUCCESS) {
+          HPL_pdmatfree(&initial_mat);
+          throw std::bad_alloc();
+      }
+  //}
+
+  HPL_pdmatprepare(TEST, ALGO, GRID, N, NB, &initial_mat, &mat);
+  
+  //if(new_NB != NB) {
+      HPL_pdmatfree(&initial_mat);
+  //}
 
   Anorm1 = HPL_pdlange(GRID, HPL_NORM_1, N, N, new_NB, mat.dA, mat.ld);
   AnormI = HPL_pdlange(GRID, HPL_NORM_I, N, N, new_NB, mat.dA, mat.ld);

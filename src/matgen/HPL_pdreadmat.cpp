@@ -174,14 +174,15 @@ void read_vector_redundant(const int ibrow, const cnpy::NpyArray& arr,
     
     const size_t bufsize = block_size*sizeof(scalar);
     // need intermediate buffer for casting
-    scalar *btemp{};
-    hipHostMalloc(&btemp, bufsize);
+    auto btemp = static_cast<scalar*>(malloc(bufsize));
+    //hipHostMalloc(&btemp, bufsize);
 
     for(int i = 0; i < block_size; i++) {
         btemp[i] = static_cast<scalar>(hb[ibrow*block_size + i]);
     }
     hipMemcpy(mat->dA + local_i + local_j * mat->ld, btemp, bufsize, hipMemcpyHostToDevice);
-    hipHostFree(btemp);
+    //hipHostFree(btemp);
+    free(btemp);
 }
 
 namespace {
