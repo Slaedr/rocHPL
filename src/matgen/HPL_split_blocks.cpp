@@ -23,8 +23,6 @@ void split_blocks(HPL_T_test *const test, const HPL_T_palg *const algo,
     using scalar = double;
     const MPI_Datatype datatype = MPI_DOUBLE;
     
-    std::cout << "Splitting matrix...\n" << std::flush;
-    
     const int buf_len = origmat->mp * origmat->nq; 
     scalar *d_buf{};
     hipMalloc(&d_buf, buf_len*sizeof(scalar));
@@ -150,6 +148,9 @@ void split_blocks(HPL_T_test *const test, const HPL_T_palg *const algo,
     const int new_b_proc_col = HPL_indxg2p(b_gl_col, block_size, block_size, srcproc, grid->npcol);
     const int loc_b_orig_col = HPL_indxg2l(b_gl_col, origmat->nb, origmat->nb, srcproc, grid->npcol);
     const int loc_b_new_col = HPL_indxg2l(b_gl_col, block_size, block_size, srcproc, grid->npcol);
+   
+    send_reqs.clear();
+
     if(grid->mycol == orig_b_proc_col) {
         if(loc_b_orig_col != origmat->nq-1) {
             throw std::runtime_error("Inconsistent b location in orig matrix");
@@ -163,23 +164,26 @@ void split_blocks(HPL_T_test *const test, const HPL_T_palg *const algo,
             const int loc_new_row = HPL_indxg2l(gl_row, block_size, block_size, srcproc,
                                                 grid->nprow);
             // Copy block into buffer
-            scalar *buf{};
-            buf = static_cast<scalar*>(malloc(block_size*sizeof(scalar)));
+            //scalar *buf{};
+            //buf = static_cast<scalar*>(malloc(block_size*sizeof(scalar)));
             //hipHostMalloc(&buf, block_size*sizeof(scalar));
-            hipMemcpy(buf, origmat->dA + loc_orig_row + origmat->ld * loc_b_orig_col,
-                      block_size*sizeof(scalar), hipMemcpyDeviceToHost);
+            //hipMemcpy(buf, origmat->dA + loc_orig_row + origmat->ld * loc_b_orig_col,
+            //          block_size*sizeof(scalar), hipMemcpyDeviceToHost);
 
             const int dest_rank = grid->order == HPL_ROW_MAJOR ?
                 new_proc_row * grid->npcol + new_b_proc_col :
                 new_proc_row + new_b_proc_col * grid->nprow;
-            //printf("My rank = %d, dest rank = %d.\n", grid->iam, dest_rank); fflush(stdout);
             const int loc_new_nrows = HPL_numroc(gl_size, block_size, block_size, new_proc_row,
                                                  srcproc, grid->nprow);
             const int tag = loc_new_row/block_size;
-            MPI_Send(buf, block_size, datatype, dest_rank, tag, grid->all_comm);
+            MPI_Request sreq;
+            //MPI_Send(buf, block_size, datatype, dest_rank, tag, grid->all_comm);
+            MPI_Isend(origmat->dA + loc_orig_row + origmat->ld*loc_b_orig_col, block_size,
+                      datatype, dest_rank, tag, grid->all_comm, &sreq);
+            send_reqs.push_back(std::move(sreq));
 
             //hipHostFree(buf);
-            free(buf);
+            //free(buf);
         }
     }
 
@@ -196,23 +200,32 @@ void split_blocks(HPL_T_test *const test, const HPL_T_palg *const algo,
             const int loc_old_row = HPL_indxg2l(gl_row, origmat->nb, origmat->nb, srcproc,
                                                 grid->nprow);
             
-            scalar *buf{};
+            //scalar *buf{};
             //hipHostMalloc(&buf, block_size*sizeof(scalar));
-            buf = static_cast<scalar*>(malloc(block_size*sizeof(scalar)));
+            //buf = static_cast<scalar*>(malloc(block_size*sizeof(scalar)));
 
             const int source_rank = grid->order == HPL_ROW_MAJOR ?
                 old_proc_row * grid->npcol + orig_b_proc_col :
                 old_proc_row + orig_b_proc_col * grid->nprow;
             const int tag = loc_row/block_size;
-            MPI_Recv(buf, block_size, datatype, source_rank, tag, grid->all_comm, MPI_STATUS_IGNORE);
+            //MPI_Recv(buf, block_size, datatype, source_rank, tag, grid->all_comm, MPI_STATUS_IGNORE);
+            MPI_Request req;
+            MPI_Irecv(mat->dA + loc_row + mat->ld*loc_b_new_col, block_size, datatype, source_rank,
+                      tag, grid->all_comm, &req);
+            MPI_Wait(&req, MPI_STATUS_IGNORE);
             
-            hipMemcpy(mat->dA + loc_row + mat->ld*loc_b_new_col, buf, block_size*sizeof(scalar),
-                      hipMemcpyHostToDevice);
+            //hipMemcpy(mat->dA + loc_row + mat->ld*loc_b_new_col, buf, block_size*sizeof(scalar),
+            //          hipMemcpyHostToDevice);
             //hipHostFree(buf);
-            free(buf);
+            //free(buf);
 
         }
     }
+
+    for(auto& req : send_reqs) {
+        MPI_Wait(&req, MPI_STATUS_IGNORE);
+    }
+
     if(grid->myrow == 0 && grid->mycol == 0) {
         printf("Completed splitting b vector.\n"); fflush(stdout);
     }

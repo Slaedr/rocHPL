@@ -96,11 +96,11 @@ void HPL_pdtest(HPL_T_test* TEST,
   rocblas_set_stream(handle, computeStream);
 
   const int new_NB = NB / TEST->refine_blocks;
-  //if(new_NB != NB) {
+  if(new_NB != NB) {
       if(myrow == 0 && mycol == 0) {
           printf("Original block size = %d, actual block size to use will be %d.\n", NB, new_NB);
       }
-  //}
+  }
 
   /* Create row-swapping data type */
   MPI_Type_contiguous(new_NB+4, MPI_DOUBLE, &PDFACT_ROW);
@@ -118,13 +118,13 @@ void HPL_pdtest(HPL_T_test* TEST,
       HPL_pdmatfree(&mat);
       throw std::bad_alloc();
   }
-  //if(new_NB != NB) {
+  if(new_NB != NB) {
       ierr = HPL_pdmatgen(TEST, GRID, ALGO, &initial_mat, N, NB);
       if(ierr != HPL_SUCCESS) {
           HPL_pdmatfree(&initial_mat);
           throw std::bad_alloc();
       }
-  //}
+  }
 
   printf("Calling pdmatprepare..\n"); fflush(stdout);
   HPL_pdmatprepare(TEST, ALGO, GRID, N, NB, &initial_mat, &mat);
@@ -133,12 +133,12 @@ void HPL_pdtest(HPL_T_test* TEST,
               mat.n, mat.mp, mat.nq, mat.ld, mat.nb);
   }
 
-  //if(new_NB != NB) {
+  if(new_NB != NB) {
       HPL_pdmatfree(&initial_mat);
       if((myrow == 0) && (mycol == 0)) {
           printf("Deleted initial mat.\n"); fflush(stdout);
       }
-  //}
+  }
 
   /*
    * Solve linear system
@@ -340,19 +340,19 @@ void HPL_pdtest(HPL_T_test* TEST,
    * Check computation, re-generate [ A | b ], compute norm 1 and inf of A and
    * x, and norm inf of b - A x. Display residual checks.
    */
-  //if(new_NB != NB) {
+  if(new_NB != NB) {
       ierr = HPL_pdmatgen(TEST, GRID, ALGO, &initial_mat, N, NB);
       if(ierr != HPL_SUCCESS) {
           HPL_pdmatfree(&initial_mat);
           throw std::bad_alloc();
       }
-  //}
+  }
 
   HPL_pdmatprepare(TEST, ALGO, GRID, N, NB, &initial_mat, &mat);
   
-  //if(new_NB != NB) {
+  if(new_NB != NB) {
       HPL_pdmatfree(&initial_mat);
-  //}
+  }
 
   Anorm1 = HPL_pdlange(GRID, HPL_NORM_1, N, N, new_NB, mat.dA, mat.ld);
   AnormI = HPL_pdlange(GRID, HPL_NORM_I, N, N, new_NB, mat.dA, mat.ld);
