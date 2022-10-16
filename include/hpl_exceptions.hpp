@@ -27,6 +27,18 @@ public:
     } \
     static_assert(true, "Prevent error message")
 
+class InsufficientAlloc : public std::runtime_error
+{
+public:
+    InsufficientAlloc(const std::string file, int line, const std::string device)
+        : std::runtime_error("ORNL HPL: Allocation overflowed on " + device
+                + " at " + file + std::to_string(line) + ": ")
+    { }
+};
+
+#define ORNL_HPL_THROW_INSUFFICIENT_ALLOC(device) \
+    throw ornl_hpl::InsufficientAlloc(__FILE__, __LINE__, device)
+
 class UnsupportedScalarType : public std::runtime_error
 {
 public:

@@ -126,6 +126,7 @@ void HPL_pdtest(HPL_T_test* TEST,
       }
   //}
 
+  printf("Calling pdmatprepare..\n"); fflush(stdout);
   HPL_pdmatprepare(TEST, ALGO, GRID, N, NB, &initial_mat, &mat);
   if((myrow == 0) && (mycol == 0)) {
       printf("Mat has %d rows, %d local rows, %d local cols, %d stride, %d block size\n",

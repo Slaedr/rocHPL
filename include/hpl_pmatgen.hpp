@@ -96,6 +96,10 @@ void split_blocks(HPL_T_test *test, const HPL_T_palg *algo,
 
 void HPL_pdmatfree(HPL_T_pmat*);
 
+template <typename T>
+void HPL_device_copy_2d_to_array(T *const dest, const int src_stride,
+    const int nrows, const int ncols, const T *const src);
+
 #endif
 /*
  * End of hpl_pmatgen.hpp

@@ -267,14 +267,17 @@ void HPL_pdmatprepare(HPL_T_test *const test, const HPL_T_palg *const algo,
     const HPL_T_grid *const grid, const int N, const int orig_bs,
     HPL_T_pmat *const initial_mat, HPL_T_pmat *const mat)
 {
+    printf("Preparing mat...\n"); fflush(stdout);
     if(test->matrix_dir.empty()) {
         /*
          * generate matrix and right-hand-side, [ A | b ] which is N by N+1.
          */
+        printf("Random mat...\n"); fflush(stdout);
         HPL_pdrandmat(grid, N, N + 1, orig_bs, mat->dA, mat->ld, HPL_ISEED);
     } else {
         // Read matrix from files
         // TODO: do this only for factors > 1
+        printf("Reading matrix from files...\n"); fflush(stdout);
         if(test->refine_blocks > 0) {
             HPL_ptimer(HPL_TIMING_IO);
             HPL_pdreadmat(grid, N, N+1, test->matrix_dir, test->mdtype, initial_mat);
