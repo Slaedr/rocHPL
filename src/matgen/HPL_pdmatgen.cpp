@@ -274,7 +274,6 @@ void HPL_pdmatprepare(HPL_T_test *const test, const HPL_T_palg *const algo,
         HPL_pdrandmat(grid, N, N + 1, orig_bs, mat->dA, mat->ld, HPL_ISEED);
     } else {
         // Read matrix from files
-        // TODO: do this only for factors > 1
         if(test->refine_blocks > 1) {
             HPL_ptimer(HPL_TIMING_IO);
             HPL_pdreadmat(grid, N, N+1, test->matrix_dir, test->mdtype, initial_mat);
@@ -283,7 +282,9 @@ void HPL_pdmatprepare(HPL_T_test *const test, const HPL_T_palg *const algo,
                 printf("Requested refine factor is %d. Refining from bs=%d to bs=%d.\n", test->refine_blocks,
                     orig_bs, orig_bs/test->refine_blocks);
             }
+            HPL_ptimer(HPL_TIMING_MAT_VEC_REDISTRIBUTE);
             split_blocks(test, algo, grid, initial_mat, test->refine_blocks, mat);
+            HPL_ptimer(HPL_TIMING_MAT_VEC_REDISTRIBUTE);
         }
         else {
             HPL_ptimer(HPL_TIMING_IO);

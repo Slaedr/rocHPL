@@ -126,7 +126,6 @@ void HPL_pdtest(HPL_T_test* TEST,
       }
   }
 
-  printf("Calling pdmatprepare..\n"); fflush(stdout);
   HPL_pdmatprepare(TEST, ALGO, GRID, N, NB, &initial_mat, &mat);
   if((myrow == 0) && (mycol == 0)) {
       printf("Mat has %d rows, %d local rows, %d local cols, %d stride, %d block size\n",
@@ -568,6 +567,12 @@ void HPL_pdtest(HPL_T_test* TEST,
       HPL_fprintf(TEST->outfp,
                   "Max aggregated wall time for I/O  . : %18.2f\n",
                   HPL_w[HPL_TIMING_IO - HPL_TIMING_BEG]);
+    if(HPL_w[HPL_TIMING_MAT_VEC_REDISTRIBUTE - HPL_TIMING_BEG] > HPL_rzero
+            && TEST->refine_blocks > 1) {
+      HPL_fprintf(TEST->outfp,
+                  "Max aggregated wall time for matrix redistribution  . : %18.2f\n",
+                  HPL_w[HPL_TIMING_MAT_VEC_REDISTRIBUTE - HPL_TIMING_BEG]);
+    }
   }
 #endif
 
