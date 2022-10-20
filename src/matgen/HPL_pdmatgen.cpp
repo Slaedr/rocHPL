@@ -9,7 +9,7 @@
  */
 
 #include "hpl.hpp"
-#include <hip/hip_runtime_api.h>
+#include <cuda/cuda_runtime_api.h>
 #include <cassert>
 #include <unistd.h>
 
@@ -46,10 +46,10 @@ static int hostMalloc(HPL_T_grid*  GRID,
   int mycol, myrow, npcol, nprow;
   (void)HPL_grid_info(GRID, &nprow, &npcol, &myrow, &mycol);
 
-  hipError_t err = hipHostMalloc(ptr, bytes);
+  cudaError_t err = cudaHostMalloc(ptr, bytes);
 
   /*Check allocation is valid*/
-  info[0] = (err != hipSuccess);
+  info[0] = (err != cudaSuccess);
   info[1] = myrow;
   info[2] = mycol;
   (void)HPL_all_reduce((void*)(info), 3, HPL_INT, HPL_MAX, GRID->all_comm);
@@ -68,10 +68,10 @@ static int deviceMalloc(HPL_T_grid*  GRID,
   int mycol, myrow, npcol, nprow;
   (void)HPL_grid_info(GRID, &nprow, &npcol, &myrow, &mycol);
 
-  hipError_t err = hipMalloc(ptr, bytes);
+  cudaError_t err = cudaMalloc(ptr, bytes);
 
   /*Check allocation is valid*/
-  info[0] = (err != hipSuccess);
+  info[0] = (err != cudaSuccess);
   info[1] = myrow;
   info[2] = mycol;
   (void)HPL_all_reduce((void*)(info), 3, HPL_INT, HPL_MAX, GRID->all_comm);
@@ -117,10 +117,16 @@ int HPL_pdmatgen(HPL_T_test* TEST,
   mat->W  = nullptr;
 
   /* Create a rocBLAS handle */
-  rocblas_create_handle(&handle);
-  rocblas_set_pointer_mode(handle, rocblas_pointer_mode_host);
-  rocblas_initialize();
-  rocblas_set_stream(handle, computeStream);
+  cublasCreate_handle(&handle);
+  cublasCreate_handle(&handle);
+  cublasSet_pointer_mode(handle, cublasPointer_mode_host);
+  cublasSet_pointer_mode(handle, cublasPointer_mode_host);
+  cublasSet_pointer_mode(handle, cublasPointer_mode_host);
+  cublasSet_pointer_mode(handle, cublasPointer_mode_host);
+  cublasInitialize();
+  cublasInitialize();
+  cublasSet_stream(handle, computeStream);
+  cublasSet_stream(handle, computeStream);
 
   /*
    * Allocate dynamic memory
@@ -237,26 +243,27 @@ int HPL_pdmatgen(HPL_T_test* TEST,
 void HPL_pdmatfree(HPL_T_pmat* mat) {
 
   if(mat->dA) {
-    hipFree(mat->dA);
+    cudaFree(mat->dA);
     mat->dA = nullptr;
   }
   if(mat->dX) {
-    hipFree(mat->dX);
+    cudaFree(mat->dX);
     mat->dX = nullptr;
   }
   if(mat->dW) {
-    hipFree(mat->dW);
+    cudaFree(mat->dW);
     mat->dW = nullptr;
   }
 
   if(mat->A) {
-    hipHostFree(mat->A);
+    cudaHostFree(mat->A);
     mat->A = nullptr;
   }
   if(mat->W) {
-    hipHostFree(mat->W);
+    cudaHostFree(mat->W);
     mat->W = nullptr;
   }
 
-  rocblas_destroy_handle(handle);
+  cublasDestroy_handle(handle);
+  cublasDestroy_handle(handle);
 }

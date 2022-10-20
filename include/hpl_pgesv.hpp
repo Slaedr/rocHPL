@@ -91,9 +91,9 @@ typedef struct HPL_S_pmat {
   double* dW;
 } HPL_T_pmat;
 
-extern hipEvent_t swapStartEvent[HPL_N_UPD], update[HPL_N_UPD];
-extern hipEvent_t swapUCopyEvent[HPL_N_UPD], swapWCopyEvent[HPL_N_UPD];
-extern hipEvent_t dgemmStart[HPL_N_UPD], dgemmStop[HPL_N_UPD];
+extern cudaEvent_t swapStartEvent[HPL_N_UPD], update[HPL_N_UPD];
+extern cudaEvent_t swapUCopyEvent[HPL_N_UPD], swapWCopyEvent[HPL_N_UPD];
+extern cudaEvent_t dgemmStart[HPL_N_UPD], dgemmStop[HPL_N_UPD];
 
 /*
  * ---------------------------------------------------------------------

@@ -78,7 +78,8 @@ void HPL_pdfact(HPL_T_panel* PANEL) {
   double max_value[128];
   int    max_index[128];
 
-  roctxRangePush("pdfact");
+  nvtxRangePushA("pdfact");
+  nvtxRangePushA("pdfact");
 
 #pragma omp parallel shared(max_value, max_index)
   {
@@ -97,7 +98,8 @@ void HPL_pdfact(HPL_T_panel* PANEL) {
                        max_index);
   }
 
-  roctxRangePop();
+  nvtxRangePop();
+  nvtxRangePop();
 
   // PANEL->A   = Mptr( PANEL->A, 0, jb, PANEL->lda );
   PANEL->dA = Mptr(PANEL->dA, 0, jb, PANEL->dlda);

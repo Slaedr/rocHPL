@@ -15,7 +15,7 @@
  */
 
 #include "hpl.hpp"
-#include <hip/hip_runtime.h>
+#include <cuda/cuda_runtime.h>
 #include <cassert>
 
 #define assertm(exp, msg) assert(((void)msg, exp))

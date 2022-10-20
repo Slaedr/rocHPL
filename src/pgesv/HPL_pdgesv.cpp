@@ -197,7 +197,7 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
       HPL_pdupdate(panel[0], HPL_LOOK_AHEAD);
 
       // when the look ahead update is finished, copy back the current panel
-      hipStreamWaitEvent(dataStream, update[HPL_LOOK_AHEAD], 0);
+      cudaStreamWaitEvent(dataStream, update[HPL_LOOK_AHEAD], 0);
       HPL_pdpanel_SendToHost(panel[1]);
 
       /* Queue up finishing the second section */
@@ -206,7 +206,7 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
 
 #ifdef HPL_DETAILED_TIMING
       HPL_ptimer(HPL_TIMING_UPDATE);
-      hipEventSynchronize(update[HPL_LOOK_AHEAD]);
+      cudaEventSynchronize(update[HPL_LOOK_AHEAD]);
       HPL_ptimer(HPL_TIMING_UPDATE);
 #endif
 
@@ -219,7 +219,7 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
       const int mp   = panel[0]->mp - (curr != 0 ? jb : 0);
 
       // compute the GFLOPs of the look ahead update DGEMM
-      hipEventElapsedTime(&smallDgemmTime,
+      cudaEventElapsedTime(&smallDgemmTime,
                           dgemmStart[HPL_LOOK_AHEAD],
                           dgemmStop[HPL_LOOK_AHEAD]);
       smallDgemmGflops =
@@ -283,7 +283,7 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
 #ifdef HPL_DETAILED_TIMING
     HPL_ptimer(HPL_TIMING_UPDATE);
 #endif
-    hipDeviceSynchronize();
+    cudaDeviceSynchronize();
 #ifdef HPL_DETAILED_TIMING
     HPL_ptimer(HPL_TIMING_UPDATE);
 #endif
@@ -298,13 +298,13 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
     largeDgemm1Time = 0.0;
     largeDgemm2Time = 0.0;
     if(panel[0]->nu1) {
-      hipEventElapsedTime(
+      cudaEventElapsedTime(
           &largeDgemm1Time, dgemmStart[HPL_UPD_1], dgemmStop[HPL_UPD_1]);
       largeDgemm1Gflops = (2.0 * mp * jb * (panel[0]->nu1)) /
                           (1000.0 * 1000.0 * (largeDgemm1Time));
     }
     if(panel[0]->nu2) {
-      hipEventElapsedTime(
+      cudaEventElapsedTime(
           &largeDgemm2Time, dgemmStart[HPL_UPD_2], dgemmStop[HPL_UPD_2]);
       largeDgemm2Gflops = (2.0 * mp * jb * (panel[0]->nu2)) /
                           (1000.0 * 1000.0 * (largeDgemm2Time));
@@ -393,7 +393,7 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
 #ifdef HPL_DETAILED_TIMING
   HPL_ptimer(HPL_TIMING_UPDATE);
 #endif
-  hipDeviceSynchronize();
+  cudaDeviceSynchronize();
 #ifdef HPL_DETAILED_TIMING
   HPL_ptimer(HPL_TIMING_UPDATE);
 #endif

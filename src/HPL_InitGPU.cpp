@@ -11,12 +11,13 @@
 #include "hpl.hpp"
 #include <algorithm>
 
-rocblas_handle handle;
+cublasHandle handle;
+cublasHandle handle;
 
-hipStream_t computeStream, dataStream;
+cudaStream_t computeStream, dataStream;
 
-hipEvent_t swapStartEvent[HPL_N_UPD], update[HPL_N_UPD];
-hipEvent_t dgemmStart[HPL_N_UPD], dgemmStop[HPL_N_UPD];
+cudaEvent_t swapStartEvent[HPL_N_UPD], update[HPL_N_UPD];
+cudaEvent_t dgemmStart[HPL_N_UPD], dgemmStop[HPL_N_UPD];
 
 static char host_name[MPI_MAX_PROCESSOR_NAME];
 
@@ -44,7 +45,7 @@ void HPL_InitGPU(const HPL_T_grid* GRID) {
 
   /* Find out how many GPUs are in the system and their device number */
   int deviceCount;
-  hipGetDeviceCount(&deviceCount);
+  cudaGetDeviceCount(&deviceCount);
 
   if(deviceCount < 1) {
     if(localRank == 0)
@@ -61,8 +62,8 @@ void HPL_InitGPU(const HPL_T_grid* GRID) {
 
 #ifdef HPL_VERBOSE_PRINT
   if(rank < localSize) {
-    hipDeviceProp_t props;
-    hipGetDeviceProperties(&props, dev);
+    cudaDeviceProp_t props;
+    cudaGetDeviceProperties(&props, dev);
 
     printf("GPU  Binding: Process %d [(p,q)=(%d,%d)] GPU: %d, pciBusID %x \n",
            rank,
@@ -75,45 +76,45 @@ void HPL_InitGPU(const HPL_T_grid* GRID) {
 
   /* Assign device to MPI process, initialize BLAS and probe device properties
    */
-  hipSetDevice(dev);
+  cudaSetDevice(dev);
 
-  hipStreamCreate(&computeStream);
-  hipStreamCreate(&dataStream);
+  cudaStreamCreate(&computeStream);
+  cudaStreamCreate(&dataStream);
 
-  hipEventCreate(swapStartEvent + HPL_LOOK_AHEAD);
-  hipEventCreate(swapStartEvent + HPL_UPD_1);
-  hipEventCreate(swapStartEvent + HPL_UPD_2);
+  cudaEventCreate(swapStartEvent + HPL_LOOK_AHEAD);
+  cudaEventCreate(swapStartEvent + HPL_UPD_1);
+  cudaEventCreate(swapStartEvent + HPL_UPD_2);
 
-  hipEventCreate(update + HPL_LOOK_AHEAD);
-  hipEventCreate(update + HPL_UPD_1);
-  hipEventCreate(update + HPL_UPD_2);
+  cudaEventCreate(update + HPL_LOOK_AHEAD);
+  cudaEventCreate(update + HPL_UPD_1);
+  cudaEventCreate(update + HPL_UPD_2);
 
-  hipEventCreate(dgemmStart + HPL_LOOK_AHEAD);
-  hipEventCreate(dgemmStart + HPL_UPD_1);
-  hipEventCreate(dgemmStart + HPL_UPD_2);
+  cudaEventCreate(dgemmStart + HPL_LOOK_AHEAD);
+  cudaEventCreate(dgemmStart + HPL_UPD_1);
+  cudaEventCreate(dgemmStart + HPL_UPD_2);
 
-  hipEventCreate(dgemmStop + HPL_LOOK_AHEAD);
-  hipEventCreate(dgemmStop + HPL_UPD_1);
-  hipEventCreate(dgemmStop + HPL_UPD_2);
+  cudaEventCreate(dgemmStop + HPL_LOOK_AHEAD);
+  cudaEventCreate(dgemmStop + HPL_UPD_1);
+  cudaEventCreate(dgemmStop + HPL_UPD_2);
 }
 
 void HPL_FreeGPU() {
-  hipEventDestroy(swapStartEvent[HPL_LOOK_AHEAD]);
-  hipEventDestroy(swapStartEvent[HPL_UPD_1]);
-  hipEventDestroy(swapStartEvent[HPL_UPD_2]);
+  cudaEventDestroy(swapStartEvent[HPL_LOOK_AHEAD]);
+  cudaEventDestroy(swapStartEvent[HPL_UPD_1]);
+  cudaEventDestroy(swapStartEvent[HPL_UPD_2]);
 
-  hipEventDestroy(update[HPL_LOOK_AHEAD]);
-  hipEventDestroy(update[HPL_UPD_1]);
-  hipEventDestroy(update[HPL_UPD_2]);
+  cudaEventDestroy(update[HPL_LOOK_AHEAD]);
+  cudaEventDestroy(update[HPL_UPD_1]);
+  cudaEventDestroy(update[HPL_UPD_2]);
 
-  hipEventDestroy(dgemmStart[HPL_LOOK_AHEAD]);
-  hipEventDestroy(dgemmStart[HPL_UPD_1]);
-  hipEventDestroy(dgemmStart[HPL_UPD_2]);
+  cudaEventDestroy(dgemmStart[HPL_LOOK_AHEAD]);
+  cudaEventDestroy(dgemmStart[HPL_UPD_1]);
+  cudaEventDestroy(dgemmStart[HPL_UPD_2]);
 
-  hipEventDestroy(dgemmStop[HPL_LOOK_AHEAD]);
-  hipEventDestroy(dgemmStop[HPL_UPD_1]);
-  hipEventDestroy(dgemmStop[HPL_UPD_2]);
+  cudaEventDestroy(dgemmStop[HPL_LOOK_AHEAD]);
+  cudaEventDestroy(dgemmStop[HPL_UPD_1]);
+  cudaEventDestroy(dgemmStop[HPL_UPD_2]);
 
-  hipStreamDestroy(dataStream);
-  hipStreamDestroy(computeStream);
+  cudaStreamDestroy(dataStream);
+  cudaStreamDestroy(computeStream);
 }

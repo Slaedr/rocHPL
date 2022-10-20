@@ -197,5 +197,5 @@ void HPL_pdrandmat(const HPL_T_grid* GRID,
                                     startrand,
                                     A);
 
-  hipDeviceSynchronize();
+  cudaDeviceSynchronize();
 }

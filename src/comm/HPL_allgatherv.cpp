@@ -58,7 +58,8 @@ int HPL_allgatherv(double*    BUF,
    * ---------------------------------------------------------------------
    */
 
-  roctxRangePush("HPL_Allgatherv");
+  nvtxRangePushA("HPL_Allgatherv");
+  nvtxRangePushA("HPL_Allgatherv");
 
 #ifdef HPL_USE_COLLECTIVES
 
@@ -122,7 +123,8 @@ int HPL_allgatherv(double*    BUF,
 
 #endif
 
-  roctxRangePop();
+  nvtxRangePop();
+  nvtxRangePop();
 
   return ((ierr == MPI_SUCCESS ? HPL_SUCCESS : HPL_FAILURE));
 }

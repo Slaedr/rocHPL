@@ -24,11 +24,13 @@
 #include "hpl_misc.hpp"
 #include <rocblas.h>
 #include <roctracer.h>
-#include <roctx.h>
+#include <nvtx3/nvToolsExt.h>
+#include <nvtx3/nvToolsExt.h>
 
-extern rocblas_handle handle;
-extern hipStream_t    computeStream;
-extern hipStream_t    dataStream;
+extern cublasHandle handle;
+extern cublasHandle handle;
+extern cudaStream_t    computeStream;
+extern cudaStream_t    dataStream;
 
 #if __cplusplus
 extern "C" {

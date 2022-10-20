@@ -73,8 +73,8 @@ void HPL_pdupdateTT(HPL_T_panel* PANEL, const HPL_T_UPD UPD) {
    */
   if((n <= 0) || (jb <= 0)) { return; }
 
-  hipStream_t stream;
-  rocblas_get_stream(handle, &stream);
+  cudaStream_t stream;
+  cublasGetStream(handle, &stream);
 
   curr  = (PANEL->grid->myrow == PANEL->prow ? 1 : 0);
   L2ptr = PANEL->dL2;
@@ -92,11 +92,14 @@ void HPL_pdupdateTT(HPL_T_panel* PANEL, const HPL_T_UPD UPD) {
     /*
      * 1 x Q case
      */
-    rocblas_dtrsm(handle,
-                  rocblas_side_left,
-                  rocblas_fill_upper,
-                  rocblas_operation_transpose,
-                  rocblas_diagonal_unit,
+    cublasDtrsm(handle,
+    cublasDtrsm(handle,
+                  CUBLAS_SIDE_left,
+                  CUBLAS_FILL_MODE_UPPER,
+                  CUBLAS_FILL_MODE_UPPER,
+                  CUBLAS_OP_Transpose,
+                  CUBLAS_DIAG_unit,
+                  CUBLAS_DIAG_unit,
                   jb,
                   n,
                   &one,
@@ -109,11 +112,14 @@ void HPL_pdupdateTT(HPL_T_panel* PANEL, const HPL_T_UPD UPD) {
     /*
      * Compute redundantly row block of U and update trailing submatrix
      */
-    rocblas_dtrsm(handle,
-                  rocblas_side_right,
-                  rocblas_fill_upper,
-                  rocblas_operation_none,
-                  rocblas_diagonal_unit,
+    cublasDtrsm(handle,
+    cublasDtrsm(handle,
+                  CUBLAS_SIDE_right,
+                  CUBLAS_FILL_MODE_UPPER,
+                  CUBLAS_FILL_MODE_UPPER,
+                  CUBLAS_OP_None,
+                  CUBLAS_DIAG_unit,
+                  CUBLAS_DIAG_unit,
                   n,
                   jb,
                   &one,
@@ -127,10 +133,11 @@ void HPL_pdupdateTT(HPL_T_panel* PANEL, const HPL_T_UPD UPD) {
    * Queue finishing the update
    */
   if(curr != 0) {
-    hipEventRecord(dgemmStart[UPD], stream);
-    rocblas_dgemm(handle,
-                  rocblas_operation_none,
-                  rocblas_operation_transpose,
+    cudaEventRecord(dgemmStart[UPD], stream);
+    cublasDgemm(handle,
+    cublasDgemm(handle,
+                  CUBLAS_OP_None,
+                  CUBLAS_OP_Transpose,
                   mp,
                   n,
                   jb,
@@ -142,14 +149,15 @@ void HPL_pdupdateTT(HPL_T_panel* PANEL, const HPL_T_UPD UPD) {
                   &one,
                   Mptr(Aptr, jb, 0, lda),
                   lda);
-    hipEventRecord(dgemmStop[UPD], stream);
+    cudaEventRecord(dgemmStop[UPD], stream);
 
     if(PANEL->grid->nprow > 1) HPL_dlatcpy_gpu(jb, n, Uptr, LDU, Aptr, lda);
   } else {
-    hipEventRecord(dgemmStart[UPD], stream);
-    rocblas_dgemm(handle,
-                  rocblas_operation_none,
-                  rocblas_operation_transpose,
+    cudaEventRecord(dgemmStart[UPD], stream);
+    cublasDgemm(handle,
+    cublasDgemm(handle,
+                  CUBLAS_OP_None,
+                  CUBLAS_OP_Transpose,
                   mp,
                   n,
                   jb,
@@ -161,8 +169,8 @@ void HPL_pdupdateTT(HPL_T_panel* PANEL, const HPL_T_UPD UPD) {
                   &one,
                   Aptr,
                   lda);
-    hipEventRecord(dgemmStop[UPD], stream);
+    cudaEventRecord(dgemmStop[UPD], stream);
   }
 
-  hipEventRecord(update[UPD], stream);
+  cudaEventRecord(update[UPD], stream);
 }

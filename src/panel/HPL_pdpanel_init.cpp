@@ -38,10 +38,10 @@ static int hostMalloc(HPL_T_grid* GRID, void** ptr, const size_t bytes) {
   int mycol, myrow, npcol, nprow;
   (void)HPL_grid_info(GRID, &nprow, &npcol, &myrow, &mycol);
 
-  hipError_t err = hipHostMalloc(ptr, bytes);
+  cudaError_t err = cudaHostMalloc(ptr, bytes);
 
   /*Check workspace allocation is valid*/
-  if(err != hipSuccess) {
+  if(err != cudaSuccess) {
     return HPL_FAILURE;
   } else {
     return HPL_SUCCESS;
@@ -53,10 +53,10 @@ static int deviceMalloc(HPL_T_grid* GRID, void** ptr, const size_t bytes) {
   int mycol, myrow, npcol, nprow;
   (void)HPL_grid_info(GRID, &nprow, &npcol, &myrow, &mycol);
 
-  hipError_t err = hipMalloc(ptr, bytes);
+  cudaError_t err = cudaMalloc(ptr, bytes);
 
   /*Check workspace allocation is valid*/
-  if(err != hipSuccess) {
+  if(err != cudaSuccess) {
     return HPL_FAILURE;
   } else {
     return HPL_SUCCESS;
@@ -277,7 +277,7 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
 
   if(PANEL->max_lwork_size < (size_t)(lwork) * sizeof(double)) {
     if(PANEL->LWORK) {
-      hipFree(PANEL->dLWORK);
+      cudaFree(PANEL->dLWORK);
       free(PANEL->LWORK);
     }
     // size_t numbytes = (((size_t)((size_t)(lwork) * sizeof( double )) +
@@ -299,7 +299,7 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
   }
   if(PANEL->max_uwork_size < (size_t)(uwork) * sizeof(double)) {
     if(PANEL->UWORK) {
-      hipFree(PANEL->dUWORK);
+      cudaFree(PANEL->dUWORK);
       free(PANEL->UWORK);
     }
     // size_t numbytes = (((size_t)((size_t)(uwork) * sizeof( double )) +

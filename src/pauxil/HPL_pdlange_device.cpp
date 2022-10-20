@@ -15,7 +15,7 @@
  */
 
 #include "hpl.hpp"
-#include <hip/hip_runtime.h>
+#include <cuda/cuda_runtime.h>
 
 #define BLOCK_SIZE 512
 #define GRID_SIZE 512
@@ -193,18 +193,20 @@ double HPL_pdlange(const HPL_T_grid* GRID,
     if((nq > 0) && (mp > 0)) {
       if(nq == 1) { // column vector
         int id;
-        rocblas_idamax(handle, mp, A, 1, &id);
-        hipMemcpy(&v0, A + id - 1, 1 * sizeof(double), hipMemcpyDeviceToHost);
+        cublasIdamax(handle, mp, A, 1, &id);
+        cublasIdamax(handle, mp, A, 1, &id);
+        cudaMemcpy(&v0, A + id - 1, 1 * sizeof(double), cudaMemcpyDeviceToHost);
       } else if(mp == 1) { // row vector
         int id;
-        rocblas_idamax(handle, nq, A, LDA, &id);
-        hipMemcpy(&v0,
+        cublasIdamax(handle, nq, A, LDA, &id);
+        cublasIdamax(handle, nq, A, LDA, &id);
+        cudaMemcpy(&v0,
                   A + ((size_t)id * LDA),
                   1 * sizeof(double),
-                  hipMemcpyDeviceToHost);
+                  cudaMemcpyDeviceToHost);
       } else {
         // custom reduction kernels
-        hipMalloc(&dwork, GRID_SIZE * sizeof(double));
+        cudaMalloc(&dwork, GRID_SIZE * sizeof(double));
 
         size_t grid_size = (nq * mp + BLOCK_SIZE - 1) / BLOCK_SIZE;
         grid_size        = (grid_size < GRID_SIZE) ? grid_size : GRID_SIZE;
@@ -212,8 +214,8 @@ double HPL_pdlange(const HPL_T_grid* GRID,
         normA_1<<<grid_size, BLOCK_SIZE>>>(nq, mp, A, LDA, dwork);
         normA_2<<<1, BLOCK_SIZE>>>(grid_size, dwork);
 
-        hipMemcpy(&v0, dwork, 1 * sizeof(double), hipMemcpyDeviceToHost);
-        hipFree(dwork);
+        cudaMemcpy(&v0, dwork, 1 * sizeof(double), cudaMemcpyDeviceToHost);
+        cudaFree(dwork);
       }
     }
     (void)HPL_reduce((void*)(&v0), 1, HPL_DOUBLE, HPL_MAX, 0, Acomm);
@@ -228,11 +230,12 @@ double HPL_pdlange(const HPL_T_grid* GRID,
       }
 
       if(nq == 1) { // column vector
-        rocblas_dasum(handle, mp, A, 1, work);
+        cublasDasum(handle, mp, A, 1, work);
+        cublasDasum(handle, mp, A, 1, work);
       } else {
-        hipMalloc(&dwork, nq * sizeof(double));
+        cudaMalloc(&dwork, nq * sizeof(double));
         norm1<<<nq, BLOCK_SIZE>>>(nq, mp, A, LDA, dwork);
-        hipMemcpy(work, dwork, nq * sizeof(double), hipMemcpyDeviceToHost);
+        cudaMemcpy(work, dwork, nq * sizeof(double), cudaMemcpyDeviceToHost);
       }
       /*
        * Find sum of global matrix columns, store on row 0 of process grid
@@ -246,7 +249,7 @@ double HPL_pdlange(const HPL_T_grid* GRID,
         v0 = Mabs(v0);
       }
       if(work) free(work);
-      if(dwork) hipFree(dwork);
+      if(dwork) cudaFree(dwork);
     }
     /*
      * Find max in row 0, store result in process (0,0)
@@ -264,13 +267,14 @@ double HPL_pdlange(const HPL_T_grid* GRID,
       }
 
       if(mp == 1) { // row vector
-        rocblas_dasum(handle, nq, A, LDA, work);
+        cublasDasum(handle, nq, A, LDA, work);
+        cublasDasum(handle, nq, A, LDA, work);
       } else {
-        hipMalloc(&dwork, mp * sizeof(double));
+        cudaMalloc(&dwork, mp * sizeof(double));
 
         size_t grid_size = (mp + BLOCK_SIZE - 1) / BLOCK_SIZE;
         norminf<<<grid_size, BLOCK_SIZE>>>(nq, mp, A, LDA, dwork);
-        hipMemcpy(work, dwork, mp * sizeof(double), hipMemcpyDeviceToHost);
+        cudaMemcpy(work, dwork, mp * sizeof(double), cudaMemcpyDeviceToHost);
       }
 
       /*
@@ -285,7 +289,7 @@ double HPL_pdlange(const HPL_T_grid* GRID,
         v0 = Mabs(v0);
       }
       if(work) free(work);
-      if(dwork) hipFree(dwork);
+      if(dwork) cudaFree(dwork);
     }
     /*
      * Find max in column 0, store result in process (0,0)

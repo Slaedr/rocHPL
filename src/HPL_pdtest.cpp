@@ -339,11 +339,12 @@ void HPL_pdtest(HPL_T_test* TEST,
       // int id = HPL_idamax( mat.mp, Bptr, 1);
       // BnormI = Bptr[id];
       int id;
-      rocblas_idamax(handle, mat.mp, dBptr, 1, &id);
+      cublasIdamax(handle, mat.mp, dBptr, 1, &id);
+      cublasIdamax(handle, mat.mp, dBptr, 1, &id);
 
       // Note: id is in Fortran indexing
-      hipMemcpy(
-          &BnormI, dBptr + id - 1, 1 * sizeof(double), hipMemcpyDeviceToHost);
+      cudaMemcpy(
+          &BnormI, dBptr + id - 1, 1 * sizeof(double), cudaMemcpyDeviceToHost);
       BnormI = Mabs(BnormI);
     } else {
       BnormI = HPL_rzero;
@@ -370,8 +371,9 @@ void HPL_pdtest(HPL_T_test* TEST,
 
     for(int nn = 0; nn < nq; nn += nq_chunk) {
       int nb = Mmin(nq - nn, nq_chunk);
-      rocblas_dgemv(handle,
-                    rocblas_operation_none,
+      cublasDgemv(handle,
+      cublasDgemv(handle,
+                    CUBLAS_OP_None,
                     mat.mp,
                     nb,
                     &mone,
@@ -384,15 +386,16 @@ void HPL_pdtest(HPL_T_test* TEST,
                     1);
     }
 
-    hipMemcpy(Bptr, dBptr, mat.mp * sizeof(double), hipMemcpyDeviceToHost);
+    cudaMemcpy(Bptr, dBptr, mat.mp * sizeof(double), cudaMemcpyDeviceToHost);
   } else if(nq > 0) {
     const double one  = 1.0;
     const double zero = 0.0;
     const double mone = -1.0;
 
     int nb = Mmin(nq, nq_chunk);
-    rocblas_dgemv(handle,
-                  rocblas_operation_none,
+    cublasDgemv(handle,
+    cublasDgemv(handle,
+                  CUBLAS_OP_None,
                   mat.mp,
                   nb,
                   &mone,
@@ -406,8 +409,9 @@ void HPL_pdtest(HPL_T_test* TEST,
 
     for(int nn = nb; nn < nq; nn += nq_chunk) {
       int nb = Mmin(nq - nn, nq_chunk);
-      rocblas_dgemv(handle,
-                    rocblas_operation_none,
+      cublasDgemv(handle,
+      cublasDgemv(handle,
+                    CUBLAS_OP_None,
                     mat.mp,
                     nb,
                     &mone,
@@ -420,7 +424,7 @@ void HPL_pdtest(HPL_T_test* TEST,
                     1);
     }
 
-    hipMemcpy(Bptr, dBptr, mat.mp * sizeof(double), hipMemcpyDeviceToHost);
+    cudaMemcpy(Bptr, dBptr, mat.mp * sizeof(double), cudaMemcpyDeviceToHost);
   } else {
     for(ii = 0; ii < mat.mp; ii++) Bptr[ii] = HPL_rzero;
   }
@@ -433,7 +437,7 @@ void HPL_pdtest(HPL_T_test* TEST,
   /*
    * Compute || b - A x ||_oo
    */
-  hipMemcpy(dBptr, Bptr, mat.mp * sizeof(double), hipMemcpyHostToDevice);
+  cudaMemcpy(dBptr, Bptr, mat.mp * sizeof(double), cudaMemcpyHostToDevice);
   resid0 = HPL_pdlange(GRID, HPL_NORM_I, N, 1, NB, dBptr, mat.ld);
   /*
    * Computes and displays norms, residuals ...
