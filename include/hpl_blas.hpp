@@ -22,13 +22,23 @@
  */
 
 #include "hpl_misc.hpp"
+
+#ifdef HPL_BUILD_HIP
+
 #include <rocblas.h>
 #include <roctracer.h>
+
+#elif HPL_BUILD_CUDA
+
+#include <cublas.h>
 #include <nvtx3/nvToolsExt.h>
 #include <nvtx3/nvToolsExt.h>
 
-extern cublasHandle handle;
-extern cublasHandle handle;
+#else
+#endif
+
+extern cublasHandle_t handle;
+extern cublasHandle_t handle;
 extern cudaStream_t    computeStream;
 extern cudaStream_t    dataStream;
 

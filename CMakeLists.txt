@@ -53,7 +53,10 @@ if(POLICY CMP0066)
 endif()
 
 # rocHPL project
-project(ornlhpl LANGUAGES CUDA)
+project(rochpl LANGUAGES CXX CUDA)
+
+set(HPL_BUILD_CUDA 1)
+add_definitions(-DHPL_BUILD_CUDA)
 
 # Build flags
 set(CMAKE_CXX_STANDARD 11)
@@ -70,110 +73,113 @@ option(BUILD_TEST "Build rocHPL single-node test" OFF)
 # Dependencies
 include(cmake/Dependencies.cmake)
 
-# Setup version
-rocm_setup_version(VERSION 6.0.0)
-
 # This option only works for make/nmake and the ninja generators, but no reason it shouldn't be on all the time
 # This tells cmake to create a compile_commands.json file that can be used with clang tooling or vim
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # HPL sources
-file(GLOB_RECURSE ornlhpl_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.cpp")
+file(GLOB_RECURSE rochpl_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.cpp")
 
 # HPL device sources
-file(GLOB_RECURSE ornlhpl_device_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*_device.cpp")
-list(REMOVE_ITEM ornlhpl_source ${ornlhpl_device_source})
+file(GLOB_RECURSE rochpl_device_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*_device.cpp")
+list(REMOVE_ITEM rochpl_source ${rochpl_device_source})
 
 # Flag source files as hip source files
-foreach(i ${ornlhpl_device_source})
+foreach(i ${rochpl_device_source})
+    set_source_files_properties(${i} LANGUAGE CUDA)
+endforeach()
+foreach(i ${rochpl_source})
     set_source_files_properties(${i} LANGUAGE CUDA)
 endforeach()
 
 list(APPEND CMAKE_HOST_FLAGS "-march=native")
 
 
-# Availability of rocm_check_target_ids command assures that we can also build
 # for gfx90a target
 if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
     set(CMAKE_CUDA_ARCHITECTURES 70)
 endif()
 
 # Target executable
-add_executable(ornlhpl ${ornlhpl_source} ${ornlhpl_device_source})
+add_executable(rochpl ${rochpl_source} ${rochpl_device_source})
 
-target_compile_options(ornlhpl PRIVATE ${CMAKE_HOST_FLAGS})
+target_compile_options(rochpl PRIVATE ${CMAKE_HOST_FLAGS})
 
 if(HPL_DEBUG)
-  target_compile_definitions(ornlhpl PRIVATE HPL_DEBUG)
+  target_compile_definitions(rochpl PRIVATE HPL_DEBUG)
 endif()
 
 if(HPL_VERBOSE_PRINT)
-  target_compile_definitions(ornlhpl PRIVATE HPL_VERBOSE_PRINT)
+  target_compile_definitions(rochpl PRIVATE HPL_VERBOSE_PRINT)
 endif()
 
 if(HPL_DETAILED_TIMING)
-  target_compile_definitions(ornlhpl PRIVATE HPL_DETAILED_TIMING)
+  target_compile_definitions(rochpl PRIVATE HPL_DETAILED_TIMING)
 endif()
 
 if(HPL_PROGRESS_REPORT)
-  target_compile_definitions(ornlhpl PRIVATE HPL_PROGRESS_REPORT)
+  target_compile_definitions(rochpl PRIVATE HPL_PROGRESS_REPORT)
 endif()
 
 # Target include directories
-target_include_directories(ornlhpl
+target_include_directories(rochpl
                            PRIVATE
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                           $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
-                           $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
-                           $<BUILD_INTERFACE:${HPL_MPI_DIR}/include>)
+                           $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>)
+					   #$<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
+					   #    $<BUILD_INTERFACE:${HPL_MPI_DIR}/include>
                        #                           $<BUILD_INTERFACE:${ROCM_PATH}/include/roctracer>)
 
+if(DEFINED HPL_BUILD_CUDA)
+	target_include_directories(rochpl PRIVATE $ENV{CUDA_ROOT}/include)
+	message(STATUS "Including $ENV{CUDA_ROOT}/include")
+endif()
+
 # MPI
-target_link_libraries(ornlhpl PRIVATE MPI::MPI_CXX)
+target_link_libraries(rochpl PRIVATE MPI::MPI_CXX)
 
 # OpenMP
-target_link_libraries(ornlhpl PRIVATE OpenMP::OpenMP_CXX)
+target_link_libraries(rochpl PRIVATE OpenMP::OpenMP_CXX)
 
 # Target link libraries
-target_link_libraries(ornlhpl PRIVATE BLAS::BLAS)
-target_link_libraries(ornlhpl PRIVATE cublas)
-target_link_libraries(ornlhpl PRIVATE nvtx)
+target_link_libraries(rochpl PRIVATE BLAS::BLAS)
+target_link_libraries(rochpl PRIVATE cublas)
+target_link_libraries(rochpl PRIVATE nvtx)
 
 # Target properties
-set_target_properties(ornlhpl PROPERTIES VERSION ${ornlhpl_VERSION})
-set_target_properties(ornlhpl PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+#set_target_properties(rochpl PROPERTIES VERSION ${rochpl_VERSION})
+set_target_properties(rochpl PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-set_target_properties(ornlhpl PROPERTIES LINKER_LANGUAGE CUDA)
+set_target_properties(rochpl PROPERTIES LINKER_LANGUAGE CUDA)
 
-target_link_options(ornlhpl PRIVATE "-fopenmp")
+target_link_options(rochpl PRIVATE "-fopenmp")
+
+set(${PROJECT_NAME}_VERSION_MAJOR 1)
+set(${PROJECT_NAME}_VERSION_MINOR 0)
+set(${PROJECT_NAME}_VERSION_PATCH 0)
 
 # Configure a header file to pass the rocHPL version
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/hpl_version.hpp.in"
                "${PROJECT_BINARY_DIR}/include/hpl_version.hpp")
 
 # Configure run scripts
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_ornlhpl.in"
-               "${CMAKE_BINARY_DIR}/run_ornlhpl"
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_rochpl.in"
+               "${CMAKE_BINARY_DIR}/run_rochpl"
                @ONLY)
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scripts/mpirun_ornlhpl.in"
-               "${CMAKE_BINARY_DIR}/mpirun_ornlhpl"
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scripts/mpirun_rochpl.in"
+               "${CMAKE_BINARY_DIR}/mpirun_rochpl"
                @ONLY)
 
 #move input file
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/HPL.dat
      DESTINATION ${CMAKE_BINARY_DIR})
 
-# Install targets
-rocm_install_targets(TARGETS ornlhpl)
-
-install(PROGRAMS ${CMAKE_BINARY_DIR}/run_ornlhpl ${CMAKE_BINARY_DIR}/mpirun_ornlhpl
+install(PROGRAMS ${CMAKE_BINARY_DIR}/run_rochpl ${CMAKE_BINARY_DIR}/mpirun_rochpl
         DESTINATION ${CMAKE_INSTALL_PREFIX})
 install(FILES ${CMAKE_BINARY_DIR}/HPL.dat
         DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 # Package specific CPACK vars
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "rocm-dev (>= 3.5.0)")
-set(CPACK_RPM_PACKAGE_REQUIRES "rocm-dev >= 3.5.0")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 
 if(NOT CPACK_PACKAGING_INSTALL_PREFIX)
@@ -183,5 +189,5 @@ endif()
 set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "\${CPACK_PACKAGING_INSTALL_PREFIX}" "\${CPACK_PACKAGING_INSTALL_PREFIX}/include")
 
 # Package name
-set(package_name ornlhpl)
+set(package_name rochpl)
 

@@ -41,7 +41,10 @@
 #undef __HIP_PLATFORM_HCC__
 #endif
 #endif
-#include "cuda/cuda_runtime_api.h"
+
+#ifdef HPL_BUILD_HIP
+#include "hip/hip_runtime_api.h"
+#endif
 
 #include "hpl_version.hpp"
 #include "hpl_misc.hpp"

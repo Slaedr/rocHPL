@@ -11,8 +11,7 @@
 #include "hpl.hpp"
 #include <algorithm>
 
-cublasHandle handle;
-cublasHandle handle;
+cublasHandle_t handle;
 
 cudaStream_t computeStream, dataStream;
 
