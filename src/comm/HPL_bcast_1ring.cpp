@@ -14,6 +14,8 @@
  * ---------------------------------------------------------------------
  */
 
+#include <algorithm>
+
 #include "hpl.hpp"
 
 int HPL_bcast_1ring(double* SBUF, int SCOUNT, int ROOT, MPI_Comm COMM) {

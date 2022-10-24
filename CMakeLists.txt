@@ -53,13 +53,18 @@ if(POLICY CMP0066)
 endif()
 
 # rocHPL project
-project(rochpl LANGUAGES CXX CUDA)
+project(rochpl VERSION 1.0.0)
+
+enable_language(CXX CUDA)
 
 set(HPL_BUILD_CUDA 1)
 add_definitions(-DHPL_BUILD_CUDA)
 
+# This sets imported targets, so this cannot be in the cmake subdirectory
+find_package(CUDAToolkit REQUIRED)
+
 # Build flags
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -86,13 +91,13 @@ list(REMOVE_ITEM rochpl_source ${rochpl_device_source})
 
 # Flag source files as hip source files
 foreach(i ${rochpl_device_source})
-    set_source_files_properties(${i} LANGUAGE CUDA)
+	set_source_files_properties(${i} PROPERTIES LANGUAGE CUDA)
 endforeach()
-foreach(i ${rochpl_source})
-    set_source_files_properties(${i} LANGUAGE CUDA)
-endforeach()
+#foreach(i ${rochpl_source})
+#    set_source_files_properties(${i} LANGUAGE CUDA)
+#endforeach()
 
-list(APPEND CMAKE_HOST_FLAGS "-march=native")
+list(APPEND CMAKE_CXX_FLAGS "-march=native")
 
 
 # for gfx90a target
@@ -130,11 +135,6 @@ target_include_directories(rochpl
 					   #    $<BUILD_INTERFACE:${HPL_MPI_DIR}/include>
                        #                           $<BUILD_INTERFACE:${ROCM_PATH}/include/roctracer>)
 
-if(DEFINED HPL_BUILD_CUDA)
-	target_include_directories(rochpl PRIVATE $ENV{CUDA_ROOT}/include)
-	message(STATUS "Including $ENV{CUDA_ROOT}/include")
-endif()
-
 # MPI
 target_link_libraries(rochpl PRIVATE MPI::MPI_CXX)
 
@@ -143,20 +143,17 @@ target_link_libraries(rochpl PRIVATE OpenMP::OpenMP_CXX)
 
 # Target link libraries
 target_link_libraries(rochpl PRIVATE BLAS::BLAS)
-target_link_libraries(rochpl PRIVATE cublas)
-target_link_libraries(rochpl PRIVATE nvtx)
+target_link_libraries(rochpl PRIVATE CUDA::cudart)
+target_link_libraries(rochpl PRIVATE CUDA::cublas)
+target_link_libraries(rochpl PRIVATE CUDA::nvToolsExt)
 
 # Target properties
-#set_target_properties(rochpl PROPERTIES VERSION ${rochpl_VERSION})
+set_target_properties(rochpl PROPERTIES VERSION ${rochpl_VERSION})
 set_target_properties(rochpl PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 set_target_properties(rochpl PROPERTIES LINKER_LANGUAGE CUDA)
 
 target_link_options(rochpl PRIVATE "-fopenmp")
-
-set(${PROJECT_NAME}_VERSION_MAJOR 1)
-set(${PROJECT_NAME}_VERSION_MINOR 0)
-set(${PROJECT_NAME}_VERSION_PATCH 0)
 
 # Configure a header file to pass the rocHPL version
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/hpl_version.hpp.in"

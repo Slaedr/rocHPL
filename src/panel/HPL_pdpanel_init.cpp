@@ -38,7 +38,7 @@ static int hostMalloc(HPL_T_grid* GRID, void** ptr, const size_t bytes) {
   int mycol, myrow, npcol, nprow;
   (void)HPL_grid_info(GRID, &nprow, &npcol, &myrow, &mycol);
 
-  cudaError_t err = cudaHostMalloc(ptr, bytes);
+  cudaError_t err = cudaMallocHost(ptr, bytes);
 
   /*Check workspace allocation is valid*/
   if(err != cudaSuccess) {

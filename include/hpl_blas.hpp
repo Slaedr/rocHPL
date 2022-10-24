@@ -30,7 +30,7 @@
 
 #elif HPL_BUILD_CUDA
 
-#include <cublas.h>
+#include <cublas_v2.h>
 #include <nvtx3/nvToolsExt.h>
 #include <nvtx3/nvToolsExt.h>
 

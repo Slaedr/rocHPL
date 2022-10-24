@@ -44,6 +44,8 @@
 
 #ifdef HPL_BUILD_HIP
 #include "hip/hip_runtime_api.h"
+#elif defined HPL_BUILD_CUDA
+#include "cuda_runtime.h"
 #endif
 
 #include "hpl_version.hpp"

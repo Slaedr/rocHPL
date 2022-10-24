@@ -39,8 +39,8 @@ int HPL_pdpanel_free(HPL_T_panel* PANEL) {
 
     if(PANEL->dLWORK) cudaFree(PANEL->dLWORK);
     if(PANEL->dUWORK) cudaFree(PANEL->dUWORK);
-    if(PANEL->LWORK) cudaHostFree(PANEL->LWORK);
-    if(PANEL->UWORK) cudaHostFree(PANEL->UWORK);
+    if(PANEL->LWORK) cudaFreeHost(PANEL->LWORK);
+    if(PANEL->UWORK) cudaFreeHost(PANEL->UWORK);
 
     PANEL->max_lwork_size = 0;
     PANEL->max_uwork_size = 0;

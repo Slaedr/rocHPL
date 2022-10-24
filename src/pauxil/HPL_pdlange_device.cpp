@@ -15,7 +15,6 @@
  */
 
 #include "hpl.hpp"
-#include <cuda/cuda_runtime.h>
 
 #define BLOCK_SIZE 512
 #define GRID_SIZE 512
@@ -172,9 +171,9 @@ double HPL_pdlange(const HPL_T_grid* GRID,
    * ---------------------------------------------------------------------
    */
 
-  double   s, v0 = HPL_rzero, *work = NULL, *dwork = NULL;
+  double   v0 = HPL_rzero, *work = NULL, *dwork = NULL;
   MPI_Comm Acomm, Ccomm, Rcomm;
-  int      ii, jj, mp, mycol, myrow, npcol, nprow, nq;
+  int      mp, mycol, myrow, npcol, nprow, nq;
 
   (void)HPL_grid_info(GRID, &nprow, &npcol, &myrow, &mycol);
   Rcomm = GRID->row_comm;

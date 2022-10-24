@@ -372,8 +372,7 @@ void HPL_pdtest(HPL_T_test* TEST,
     for(int nn = 0; nn < nq; nn += nq_chunk) {
       int nb = Mmin(nq - nn, nq_chunk);
       cublasDgemv(handle,
-      cublasDgemv(handle,
-                    CUBLAS_OP_None,
+                    CUBLAS_OP_N,
                     mat.mp,
                     nb,
                     &mone,
@@ -394,8 +393,7 @@ void HPL_pdtest(HPL_T_test* TEST,
 
     int nb = Mmin(nq, nq_chunk);
     cublasDgemv(handle,
-    cublasDgemv(handle,
-                  CUBLAS_OP_None,
+                  CUBLAS_OP_N,
                   mat.mp,
                   nb,
                   &mone,
@@ -410,8 +408,7 @@ void HPL_pdtest(HPL_T_test* TEST,
     for(int nn = nb; nn < nq; nn += nq_chunk) {
       int nb = Mmin(nq - nn, nq_chunk);
       cublasDgemv(handle,
-      cublasDgemv(handle,
-                    CUBLAS_OP_None,
+                    CUBLAS_OP_N,
                     mat.mp,
                     nb,
                     &mone,

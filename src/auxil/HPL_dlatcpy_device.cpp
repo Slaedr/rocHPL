@@ -15,7 +15,6 @@
  */
 
 #include "hpl.hpp"
-#include <cuda/cuda_runtime.h>
 
 #define TILE_DIM 64
 #define BLOCK_ROWS 16

@@ -15,7 +15,6 @@
  */
 
 #include "hpl.hpp"
-#include <cuda/cuda_runtime.h>
 
 #define BLOCK_SIZE 512
 

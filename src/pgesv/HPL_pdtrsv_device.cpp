@@ -15,7 +15,6 @@
  */
 
 #include "hpl.hpp"
-#include <cuda/cuda_runtime.h>
 
 #define BLOCK_SIZE 512
 __global__ void setZero(const int N, double* __restrict__ X) {
@@ -70,8 +69,7 @@ void HPL_pdtrsv(HPL_T_grid* GRID, HPL_T_pmat* AMAT) {
    */
 
   MPI_Comm Ccomm, Rcomm;
-  double * Aprev = NULL, *XC = NULL, *XR = NULL, *Xd = NULL, *Xdprev = NULL,
-         *W  = NULL;
+  double *XR = NULL, *Xd = NULL, *Xdprev = NULL;
   double *dA = NULL, *dAprev = NULL, *dAptr, *dXC = NULL, *dXR = NULL,
          *dXd = NULL, *dXdprev = NULL, *dW = NULL;
   int Alcol, Alrow, Anpprev, Anp, Anq, Bcol, Cmsgid, GridIsNotPx1, GridIsNot1xQ,
@@ -103,10 +101,8 @@ void HPL_pdtrsv(HPL_T_grid* GRID, HPL_T_pmat* AMAT) {
   dXR = AMAT->dX;
   XR  = AMAT->W + 2 * Anp;
 
-  XC  = AMAT->W;
   dXC = AMAT->dW;
 
-  W  = AMAT->W + Anp;
   dW = AMAT->dW + Anp;
 
   cudaStream_t stream;
@@ -170,18 +166,14 @@ void HPL_pdtrsv(HPL_T_grid* GRID, HPL_T_pmat* AMAT) {
     dXdprev = (dXd = dXR + Anq);
     if(myrow == Alrow) {
       cublasDtrsv(handle,
-      cublasDtrsv(handle,
                     CUBLAS_FILL_MODE_UPPER,
-                    CUBLAS_FILL_MODE_UPPER,
-                    CUBLAS_OP_None,
-                    CUBLAS_DIAG_non_unit,
-                    CUBLAS_DIAG_non_unit,
+                    CUBLAS_OP_N,
+                    CUBLAS_DIAG_NON_UNIT,
                     kb,
                     dAptr + Anp,
                     lda,
                     dXC + Anp,
                     1);
-      cublasDcopy(handle, kb, dXC + Anp, 1, dXd, 1);
       cublasDcopy(handle, kb, dXC + Anp, 1, dXd, 1);
     }
   }
@@ -238,8 +230,7 @@ void HPL_pdtrsv(HPL_T_grid* GRID, HPL_T_pmat* AMAT) {
         const double one  = 1.0;
         const double mone = -1.0;
         cublasDgemv(handle,
-        cublasDgemv(handle,
-                      CUBLAS_OP_None,
+                      CUBLAS_OP_N,
                       n1pprev,
                       kbprev,
                       &mone,
@@ -278,7 +269,6 @@ void HPL_pdtrsv(HPL_T_grid* GRID, HPL_T_pmat* AMAT) {
           (void)HPL_recv(dW, n1pprev, colprev, Rmsgid, Rcomm);
           const double one = 1.0;
           cublasDaxpy(
-          cublasDaxpy(
               handle, n1pprev, &one, dW, 1, dXC + Anpprev - n1pprev, 1);
         }
       }
@@ -288,18 +278,14 @@ void HPL_pdtrsv(HPL_T_grid* GRID, HPL_T_pmat* AMAT) {
      */
     if((mycol == Alcol) && (myrow == Alrow)) {
       cublasDtrsv(handle,
-      cublasDtrsv(handle,
                     CUBLAS_FILL_MODE_UPPER,
-                    CUBLAS_FILL_MODE_UPPER,
-                    CUBLAS_OP_None,
-                    CUBLAS_DIAG_non_unit,
-                    CUBLAS_DIAG_non_unit,
+                    CUBLAS_OP_N,
+                    CUBLAS_DIAG_NON_UNIT,
                     kb,
                     dAptr + Anp,
                     lda,
                     dXC + Anp,
                     1);
-      cublasDcopy(handle, kb, dXC + Anp, 1, dXR + Anq, 1);
       cublasDcopy(handle, kb, dXC + Anp, 1, dXR + Anq, 1);
     }
     /*
@@ -309,8 +295,7 @@ void HPL_pdtrsv(HPL_T_grid* GRID, HPL_T_pmat* AMAT) {
       const double one  = 1.0;
       const double mone = -1.0;
       cublasDgemv(handle,
-      cublasDgemv(handle,
-                    CUBLAS_OP_None,
+                    CUBLAS_OP_N,
                     tmp1,
                     kbprev,
                     &mone,

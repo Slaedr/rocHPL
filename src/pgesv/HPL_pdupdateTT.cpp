@@ -93,13 +93,10 @@ void HPL_pdupdateTT(HPL_T_panel* PANEL, const HPL_T_UPD UPD) {
      * 1 x Q case
      */
     cublasDtrsm(handle,
-    cublasDtrsm(handle,
-                  CUBLAS_SIDE_left,
+                  CUBLAS_SIDE_LEFT,
                   CUBLAS_FILL_MODE_UPPER,
-                  CUBLAS_FILL_MODE_UPPER,
-                  CUBLAS_OP_Transpose,
-                  CUBLAS_DIAG_unit,
-                  CUBLAS_DIAG_unit,
+                  CUBLAS_OP_T,
+                  CUBLAS_DIAG_UNIT,
                   jb,
                   n,
                   &one,
@@ -113,13 +110,10 @@ void HPL_pdupdateTT(HPL_T_panel* PANEL, const HPL_T_UPD UPD) {
      * Compute redundantly row block of U and update trailing submatrix
      */
     cublasDtrsm(handle,
-    cublasDtrsm(handle,
-                  CUBLAS_SIDE_right,
+                  CUBLAS_SIDE_RIGHT,
                   CUBLAS_FILL_MODE_UPPER,
-                  CUBLAS_FILL_MODE_UPPER,
-                  CUBLAS_OP_None,
-                  CUBLAS_DIAG_unit,
-                  CUBLAS_DIAG_unit,
+                  CUBLAS_OP_N,
+                  CUBLAS_DIAG_UNIT,
                   n,
                   jb,
                   &one,
@@ -135,9 +129,8 @@ void HPL_pdupdateTT(HPL_T_panel* PANEL, const HPL_T_UPD UPD) {
   if(curr != 0) {
     cudaEventRecord(dgemmStart[UPD], stream);
     cublasDgemm(handle,
-    cublasDgemm(handle,
-                  CUBLAS_OP_None,
-                  CUBLAS_OP_Transpose,
+                  CUBLAS_OP_N,
+                  CUBLAS_OP_T,
                   mp,
                   n,
                   jb,
@@ -155,9 +148,8 @@ void HPL_pdupdateTT(HPL_T_panel* PANEL, const HPL_T_UPD UPD) {
   } else {
     cudaEventRecord(dgemmStart[UPD], stream);
     cublasDgemm(handle,
-    cublasDgemm(handle,
-                  CUBLAS_OP_None,
-                  CUBLAS_OP_Transpose,
+                  CUBLAS_OP_N,
+                  CUBLAS_OP_T,
                   mp,
                   n,
                   jb,

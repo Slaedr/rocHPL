@@ -7,11 +7,11 @@
  *    SPDX-License-Identifier: (BSD-3-Clause)
  * ---------------------------------------------------------------------
  */
+#include <cassert>
+#include <algorithm>
+#include <unistd.h>
 
 #include "hpl.hpp"
-#include <cuda/cuda_runtime_api.h>
-#include <cassert>
-#include <unistd.h>
 
 const int max_nthreads = 128;
 
@@ -46,7 +46,7 @@ static int hostMalloc(HPL_T_grid*  GRID,
   int mycol, myrow, npcol, nprow;
   (void)HPL_grid_info(GRID, &nprow, &npcol, &myrow, &mycol);
 
-  cudaError_t err = cudaHostMalloc(ptr, bytes);
+  cudaError_t err = cudaMallocHost(ptr, bytes);
 
   /*Check allocation is valid*/
   info[0] = (err != cudaSuccess);
@@ -117,16 +117,10 @@ int HPL_pdmatgen(HPL_T_test* TEST,
   mat->W  = nullptr;
 
   /* Create a rocBLAS handle */
-  cublasCreate_handle(&handle);
-  cublasCreate_handle(&handle);
-  cublasSet_pointer_mode(handle, cublasPointer_mode_host);
-  cublasSet_pointer_mode(handle, cublasPointer_mode_host);
-  cublasSet_pointer_mode(handle, cublasPointer_mode_host);
-  cublasSet_pointer_mode(handle, cublasPointer_mode_host);
-  cublasInitialize();
-  cublasInitialize();
-  cublasSet_stream(handle, computeStream);
-  cublasSet_stream(handle, computeStream);
+  cublasCreate(&handle);
+  cublasSetPointerMode(handle, CUBLAS_POINTER_MODE_HOST);
+  //cublasInitialize();
+  cublasSetStream(handle, computeStream);
 
   /*
    * Allocate dynamic memory
@@ -256,14 +250,13 @@ void HPL_pdmatfree(HPL_T_pmat* mat) {
   }
 
   if(mat->A) {
-    cudaHostFree(mat->A);
+    cudaFreeHost(mat->A);
     mat->A = nullptr;
   }
   if(mat->W) {
-    cudaHostFree(mat->W);
+    cudaFreeHost(mat->W);
     mat->W = nullptr;
   }
 
-  cublasDestroy_handle(handle);
-  cublasDestroy_handle(handle);
+  cublasDestroy(handle);
 }
