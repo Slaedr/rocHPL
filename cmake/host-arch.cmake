@@ -1,0 +1,23 @@
+
+if(NOT DEFINED CPU_TYPE)
+    set(CPU_TYPE $ENV{CPU_TYPE})
+endif()
+if(NOT DEFINED CPU_TYPE)
+    set(CPU_TYPE "POWER9")
+endif()
+
+if(${CMAKE_CXX_COMPILER_ID} MATCHES "GNU" OR ${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
+    set(CXX_COMPILER_GNU_CLANG 1)
+elseif(${CMAKE_CXX_COMPILER_ID} MATCHES "Cray")
+    set(CXX_COMPILER_CRAY 1)
+else()
+    message(SEND_ERROR "Unsupported compiler!")
+endif()
+
+if(${CPU_TYPE} STREQUAL "POWER9")
+    list(APPEND CMAKE_CXX_FLAGS "-mcpu=power9 -maltivec")
+elseif(${CPU_TYPE} STREQUAL "SKYLAKE")
+    list(APPEND CMAKE_CXX_FLAGS "-march=skylake-avx512")
+else()
+    message(WARNING "No architecture-specific CPU optimizations enabled.")
+endif()

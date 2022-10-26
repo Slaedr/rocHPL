@@ -97,7 +97,8 @@ endforeach()
 #    set_source_files_properties(${i} LANGUAGE CUDA)
 #endforeach()
 
-list(APPEND CMAKE_CXX_FLAGS "-march=native")
+#list(APPEND CMAKE_CXX_FLAGS "-march=native")
+include(cmake/host-arch.cmake)
 
 
 # for gfx90a target
@@ -151,7 +152,7 @@ target_link_libraries(rochpl PRIVATE CUDA::nvToolsExt)
 set_target_properties(rochpl PROPERTIES VERSION ${rochpl_VERSION})
 set_target_properties(rochpl PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-set_target_properties(rochpl PROPERTIES LINKER_LANGUAGE CUDA)
+#set_target_properties(rochpl PROPERTIES LINKER_LANGUAGE CUDA)
 
 target_link_options(rochpl PRIVATE "-fopenmp")
 
