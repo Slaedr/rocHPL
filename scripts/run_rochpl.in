@@ -83,7 +83,6 @@ supported_distro
 # #################################################
 # Grab options from CMake config
 rochpl_bin=@CMAKE_INSTALL_PREFIX@/bin/rochpl
-rocm_dir=@ROCM_PATH@
 rocblas_dir=@ROCBLAS_LIB_PATH@
 blas_dir=@HPL_BLAS_DIR@
 
@@ -94,12 +93,13 @@ q=-1
 N=45312
 NB=384
 frac=0.6
+smt_per_core=1
 
 filename=HPL.dat
 inputfile=false
 cmdrun=false
 
-export LD_LIBRARY_PATH=${rocblas_dir}:${blas_dir}:${rocm_dir}/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=${rocblas_dir}:${blas_dir}:$LD_LIBRARY_PATH
 
 oversubscribe=true
 
@@ -110,7 +110,7 @@ oversubscribe=true
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version, --options hP:Q:p:q:N:i:f: -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,smt_per_core:,help,version, --options hP:Q:p:q:N:i:f: -- "$@")
 else
   echo "Need a new version of getopt"
   exit 1
@@ -156,6 +156,9 @@ while true; do
     -f)
         frac=${2}
         shift 2 ;;
+    --smt_per_core)
+        smt_per_core=${2}
+        shift 2 ;;
     -i)
         filename=${2}
         inputfile=true
@@ -179,6 +182,11 @@ if [[ "$np" -lt 1 ]]; then
   exit 1
 fi
 
+if [[ "$smt_per_core" -ne 1 && "$smt_per_core" -ne 2 && "$smt_per_core" -ne 4 ]]; then
+  echo "Invalid SMT per core; aborting";
+  exit 1
+fi
+
 #######################################
 # Now figure out the CPU core mappings
 #######################################
@@ -199,6 +207,8 @@ elif [[ -n ${SLURM_LOCALID+x} ]]; then
   size=$(echo $size | sed -r 's/^([^.]+).*$/\1/; s/^[^0-9]*([0-9]+).*$/\1/')
 fi
 set -u
+
+echo Global rank $globalRank, size $globalSize, local rank $rank, local size $size.
 
 #Determing node-local grid size
 if [[ "$p" -lt 1 && "$q" -lt 1 ]]; then
@@ -271,22 +281,17 @@ mygpu=$((myq+myp*q))
 if [[ -n ${HPL_PLATFORM+x} ]]; then
   platform=$HPL_PLATFORM
 else
-  platform=$(cat /sys/class/dmi/id/product_name)
+  #platform=$(cat /sys/class/dmi/id/product_name)
+  platform=IBM_AC922
 fi
 
-if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" ]]; then
+if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platform}" == "IBM_AC922" ]]; then
   # Special core mapping for BardPeak
 
   # Debug
   # if [[ $globalRank == 0 ]]; then
   #   echo "BardPeak platform detected"
   # fi
-
-  # Sanity check
-  if [[ $size -gt 8 ]]; then
-    echo "Unsupported number of ranks on BardPeak platform; aborting";
-    exit 1
-  fi
 
   # GCD0 cores="48-55"
   # GCD1 cores="56-63"
@@ -297,31 +302,65 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" ]]; then
   # GCD6 cores="32-39"
   # GCD7 cores="40-47"
 
-  root_cores=(48 56 16 24 0 8 32 40)
+  if [[ "${platform}" == "IBM_AC922" ]]; then
+    total_cpu_cores=42
+    max_smt_per_core=4
+    # Sanity check
+    if [[ $size -gt $total_cpu_cores ]]; then
+      echo "Unsupported number of ranks on IBM AC922 platform; aborting";
+      exit 1
+    fi
+    root_cores=(0 28 56 88 116 144)
+    omp_num_threads=$((7 * $smt_per_core))
+    num_gpus_per_node=6
+  else
+    # override SMT per core for AMD systems
+    smt_per_core=1
+    max_smt_per_core=1
+    # Sanity check
+    if [[ $size -gt 8 ]]; then
+      echo "Unsupported number of ranks on BardPeak platform; aborting";
+      exit 1
+    fi
+    root_cores=(48 56 16 24 0 8 32 40)
+    omp_num_threads=8
+    num_gpus_per_node=8
+  fi
+  num_cpu_places=$((total_cpu_cores * smt_per_core))
+  gpu_places_domain_size=$((total_cpu_cores * max_smt_per_core / num_gpus_per_node))
+  num_places_per_gpu=$((num_cpu_places / num_gpus_per_node))
+  smts_per_place=$((max_smt_per_core / smt_per_core))
+
+  echo Initial OMP num theads = $omp_num_threads
+  echo Total CPU cores = $total_cpu_cores.
+  echo Number of OMP places to fill = $num_cpu_places.
+  echo Total hardware threads available per GPU on the system = $gpu_places_domain_size.
+  echo Number of hardware threads to use per GPU = $num_places_per_gpu.
+  echo Each OMP thread 'takes' $smts_per_place hardware threads.
+
   root_core=${root_cores[mygpu]}
 
   # First omp place is the root core
   omp_places="{$root_core}"
 
   # First assign the CCD
-  for i in $(seq $((root_core+1)) $((root_core+8-1)))
+  for i in $(seq $((root_core+smts_per_place)) ${smts_per_place} $((root_core+gpu_places_domain_size-1)))
   do
     omp_places+=",{$i}"
   done
-  omp_num_threads=8
 
-  places="{$root_core-$((root_core+7))}"
+  places="{$root_core-$((root_core+gpu_places_domain_size-1))}"
 
   # Loop through unassigned CCDs
-  for c in $(seq $((mygpu+size)) $size 7)
+  for c in $(seq $((mygpu+size)) $size $((num_gpus_per_node-1)))
   do
     iroot_core=${root_cores[c]}
-    for i in $(seq $((iroot_core)) $((iroot_core+8-1)))
+    for i in $(seq $((iroot_core)) $smts_per_place $((iroot_core+gpu_places_domain_size-1)))
     do
       omp_places+=",{$i}"
     done
-    omp_num_threads=$((omp_num_threads+8))
-    places+=",{$iroot_core-$((iroot_core+7))}"
+    omp_num_threads=$((omp_num_threads+num_places_per_gpu))
+    places+=",{$iroot_core-$((iroot_core+gpu_places_domain_size-1))}"
   done
 
   if [[ "${oversubscribe}" == true ]]; then
@@ -331,23 +370,25 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" ]]; then
       if [[ "$j" == "$myq" ]]; then
         continue
       fi
-      for jj in $(seq 0 $size 7)
+      for jj in $(seq 0 $size $((num_gpus_per_node-1)))
       do
         q_gpu=$((jj+j+myp*q))
         q_core=$((root_cores[q_gpu]))
-        offset=$(( (q_gpu>=size) ? 0 : 1))
-        for i in $(seq $((q_core+offset)) $((q_core+8-1)))
+        # If this GPU-core-domain is in use by a task, leave one OMP place for that task:
+        offset=$(( (q_gpu>=size) ? 0 : smts_per_place))
+        for i in $(seq $((q_core+offset)) $smts_per_place $((q_core+gpu_places_domain_size-1)))
         do
           omp_places+=",{$i}"
         done
-        omp_num_threads=$((omp_num_threads+8-offset))
-        places+=",{$((q_core+offset))-$((q_core+7))}"
+        omp_num_threads=$((omp_num_threads+num_places_per_gpu-offset))
+        places+=",{$((q_core+offset))-$((q_core+gpu_places_domain_size-1))}"
       done
     done
   fi
 
 else
   # Default core mapping
+  # This will be heavily sub-optimal with the OS regards hardware threads as "cores", as on Summit.
   root_core=$((myp*row_stride + myq*col_stride))
 
   omp_num_threads=${col_stride}
@@ -394,6 +435,8 @@ fi
 export OMP_NUM_THREADS=${omp_num_threads}
 export OMP_PLACES=${omp_places}
 export OMP_PROC_BIND=true
+
+echo "Rank $globalRank: Num threads = $OMP_NUM_THREADS, places = $OMP_PLACES."
 
 if [[ $globalRank -lt $size ]]; then
   echo "Node Binding: Process $rank [(p,q)=($myp,$myq)] CPU Cores: $omp_num_threads - $places"

@@ -71,7 +71,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Build options
 option(HPL_DEBUG "Compile with modest debugging turned on" OFF)
 option(HPL_DETAILED_DEBUG "Compile with voluminous debugging information turned on" OFF)
-option(HPL_DETAILED_TIMING "Enable detail timers" OFF)
 option(HPL_REFERENCE "Build reference mode" OFF)
 option(BUILD_TEST "Build rocHPL single-node test" OFF)
 
@@ -171,6 +170,8 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scripts/mpirun_rochpl.in"
 #move input file
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/HPL.dat
      DESTINATION ${CMAKE_BINARY_DIR})
+
+install(TARGETS rochpl)
 
 install(PROGRAMS ${CMAKE_BINARY_DIR}/run_rochpl ${CMAKE_BINARY_DIR}/mpirun_rochpl
         DESTINATION ${CMAKE_INSTALL_PREFIX})
