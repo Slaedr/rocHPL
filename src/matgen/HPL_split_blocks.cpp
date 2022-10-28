@@ -22,26 +22,46 @@ void split_blocks(HPL_T_test *const test, const HPL_T_palg *const algo,
     const int gl_size = origmat->n;
     using scalar = double;
     const MPI_Datatype datatype = MPI_DOUBLE;
-    
-    const int buf_len = origmat->mp * origmat->nq; 
-    scalar *d_buf{};
-    hipMalloc(&d_buf, buf_len*sizeof(scalar));
-    int marker = 0;
 
-    std::vector<MPI_Request> send_reqs;
+    if(origmat->mp != mat->mp) {
+        printf("WARNING: Original and new matrices have different mp on rank %d!", grid->iam);
+    }
+    if(origmat->nq != mat->nq) {
+        printf("WARNING: Original and new matrices have different nq on rank %d!", grid->iam);
+    }
+    printf("Rank %d starting spltting..\n", grid->iam);
+    fflush(stdout);
 
-    for(int loc_orig_col = 0; loc_orig_col < origmat->nq-1; loc_orig_col += block_size) {
-        const int gl_col = HPL_indxl2g(loc_orig_col, origmat->nb, origmat->nb, grid->mycol,
+    for(int loc_col = 0; loc_col < origmat->nq-1; loc_col += block_size) {
+        // originally, this local location has a certain global idx
+        const int gl_col = HPL_indxl2g(loc_col, origmat->nb, origmat->nb, grid->mycol,
                                        srcproc, grid->npcol);
+        // That global col idx maps to some local col in some other proc
         const int loc_new_col = HPL_indxg2l(gl_col, block_size, block_size, srcproc, grid->npcol);
         const int new_proc_col = HPL_indxg2p(gl_col, block_size, block_size, srcproc, grid->npcol);
+       
+        // In the split matrix, this local location maps to some (other) global col idx 
+        const int new_gl_col = HPL_indxl2g(loc_col, block_size, block_size, grid->mycol,
+                                       srcproc, grid->npcol);
+        // That global col idx maps to some local idx in the original matrix on some other proc
+        const int loc_old_col = HPL_indxg2l(new_gl_col, origmat->nb, origmat->nb, srcproc, grid->npcol);
+        const int old_proc_col = HPL_indxg2p(new_gl_col, origmat->nb, origmat->nb, srcproc, grid->npcol);
 
-        for(int loc_orig_row = 0; loc_orig_row < origmat->mp; loc_orig_row += block_size) {
-            const int gl_row = HPL_indxl2g(loc_orig_row, origmat->nb, origmat->nb, grid->myrow,
+        for(int loc_row = 0; loc_row < origmat->mp; loc_row += block_size) {
+            // info needed for sending
+            const int gl_row = HPL_indxl2g(loc_row, origmat->nb, origmat->nb, grid->myrow,
                                            srcproc, grid->nprow);
             const int new_proc_row = HPL_indxg2p(gl_row, block_size, block_size, srcproc,
                                                  grid->nprow);
             const int loc_new_row = HPL_indxg2l(gl_row, block_size, block_size, srcproc,
+                    grid->nprow);
+           
+            // info needed for receiving 
+            const int new_gl_row = HPL_indxl2g(loc_row, block_size, block_size, grid->myrow,
+                                           srcproc, grid->nprow);
+            const int old_proc_row = HPL_indxg2p(new_gl_row, origmat->nb, origmat->nb, srcproc,
+                                                 grid->nprow);
+            const int loc_old_row = HPL_indxg2l(new_gl_row, origmat->nb, origmat->nb, srcproc,
                     grid->nprow);
             
             const int dest_rank = grid->order == HPL_ROW_MAJOR ?
@@ -51,6 +71,10 @@ void split_blocks(HPL_T_test *const test, const HPL_T_palg *const algo,
                                                  srcproc, grid->nprow);
             const int tag = loc_new_row/block_size +
                 loc_new_col/block_size * loc_new_nrows/block_size;
+                
+            scalar *d_buf{};
+            hipMalloc(&d_buf, block_size*block_size*sizeof(scalar));
+            MPI_Request send_req;
 
             if(dest_rank != grid->iam) {
                 // Copy block into buffer
@@ -59,32 +83,67 @@ void split_blocks(HPL_T_test *const test, const HPL_T_palg *const algo,
                 buf = static_cast<scalar*>(malloc(block_size*block_size*sizeof(scalar)));
 #endif
                 //hipMemcpy2D(d_buf + buf_row + buf_col*buf_ld, buf_ld * sizeof(scalar),
-                //    origmat->dA + loc_orig_row + loc_orig_col*origmat->ld,
+                //    origmat->dA + loc_row + loc_col*origmat->ld,
                 //    origmat->ld*sizeof(scalar), block_size * sizeof(scalar), block_size,
                 //    hipMemcpyDeviceToDevice);
-                HPL_device_copy_2d_to_array(d_buf + marker, origmat->ld, block_size, block_size,
-                    origmat->dA + loc_orig_row + loc_orig_col*origmat->ld);
-                if(marker >= buf_len) {
-                    ORNL_HPL_THROW_INSUFFICIENT_ALLOC("gpu");
-                }
+                HPL_device_copy_2d_to_array(d_buf, origmat->ld, block_size, block_size,
+                    origmat->dA + loc_row + loc_col*origmat->ld);
                 //if(buf_col >= origmat->nq) {
                 //    ORNL_HPL_THROW_INSUFFICIENT_ALLOC("gpu");
                 //}
 
                 // Send, and ye shall receive (in the next loop)
-                MPI_Request sreq;
-                MPI_Isend(d_buf + marker, block_size*block_size, datatype, dest_rank, tag, grid->all_comm,
-                    &sreq);
-                send_reqs.push_back(std::move(sreq));
-                marker += block_size*block_size;
+                MPI_Isend(d_buf, block_size*block_size, datatype, dest_rank, tag, grid->all_comm, &send_req);
+                printf("Rank %d returned from ISend.\n", grid->iam); fflush(stdout);
 
 #ifdef HPL_MPI_NOT_GPU_AWARE
                 free(buf);
 #endif
             }
+
+            const int source_rank = grid->order == HPL_ROW_MAJOR ?
+                old_proc_row * grid->npcol + old_proc_col :
+                old_proc_row + old_proc_col * grid->nprow;
+            const int rec_tag = loc_row/block_size + loc_col/block_size * mat->mp / block_size;
+            if(source_rank != grid->iam) {
+                //
+                scalar *d_rbuf{};
+                hipMalloc(&d_rbuf, block_size*block_size*sizeof(scalar));
+                MPI_Request req;
+                MPI_Irecv(d_rbuf, block_size*block_size, datatype, source_rank, tag, grid->all_comm,
+                          &req);
+                printf("Rank %d returned from Irecv.\n", grid->iam); fflush(stdout);
+                int ierr = MPI_Wait(&req, MPI_STATUS_IGNORE);
+                if(ierr != MPI_SUCCESS) {
+                    printf("IRecv failed on rank %d!\n", grid->iam); fflush(stdout);
+                }
+                printf("Rank %d completed Irecv.\n", grid->iam); fflush(stdout);
+                
+#ifdef HPL_MPI_NOT_GPU_AWARE
+                free(buf);
+#endif
+                hipMemcpy2D(mat->dA + loc_row + loc_col*mat->ld, mat->ld*sizeof(scalar), d_rbuf,
+                    block_size*sizeof(scalar), block_size*sizeof(scalar), block_size,
+                    hipMemcpyDeviceToDevice);
+                hipFree(d_rbuf);
+            } else {
+                hipMemcpy2D(mat->dA + loc_row + loc_col*mat->ld, mat->ld*sizeof(scalar),
+                    origmat->dA + loc_old_row + loc_old_col*origmat->ld, origmat->ld*sizeof(scalar),
+                    block_size * sizeof(scalar), block_size, hipMemcpyDeviceToDevice);
+            }
+
+            if(dest_rank != grid->iam) {
+                int ierr = MPI_Wait(&send_req, MPI_STATUS_IGNORE);
+                if(ierr != MPI_SUCCESS) {
+                    printf("ISend failed on rank %d!\n", grid->iam); fflush(stdout);
+                }
+                printf("Rank %d completed Isend.\n", grid->iam); fflush(stdout);
+            }
+            hipFree(d_buf);
         }
     }
 
+#if 0
     for(int loc_col = 0; loc_col < mat->nq-1; loc_col += block_size) {
         const int gl_col = HPL_indxl2g(loc_col, block_size, block_size, grid->mycol,
                                        srcproc, grid->npcol);
@@ -130,13 +189,8 @@ void split_blocks(HPL_T_test *const test, const HPL_T_palg *const algo,
 
         }
     }
+#endif
 
-    for(auto& req : send_reqs) {
-        MPI_Wait(&req, MPI_STATUS_IGNORE);
-    }
-
-    hipFree(d_buf);
-    
     if(grid->myrow == 0 && grid->mycol == 0) {
         std::cout << "Completed splitting matrix. Splitting b vector..\n" << std::flush;
     }
@@ -149,8 +203,6 @@ void split_blocks(HPL_T_test *const test, const HPL_T_palg *const algo,
     const int loc_b_orig_col = HPL_indxg2l(b_gl_col, origmat->nb, origmat->nb, srcproc, grid->npcol);
     const int loc_b_new_col = HPL_indxg2l(b_gl_col, block_size, block_size, srcproc, grid->npcol);
    
-    send_reqs.clear();
-
     if(grid->mycol == orig_b_proc_col) {
         if(loc_b_orig_col != origmat->nq-1) {
             throw std::runtime_error("Inconsistent b location in orig matrix");
@@ -180,7 +232,6 @@ void split_blocks(HPL_T_test *const test, const HPL_T_palg *const algo,
             //MPI_Send(buf, block_size, datatype, dest_rank, tag, grid->all_comm);
             MPI_Isend(origmat->dA + loc_orig_row + origmat->ld*loc_b_orig_col, block_size,
                       datatype, dest_rank, tag, grid->all_comm, &sreq);
-            send_reqs.push_back(std::move(sreq));
 
             //hipHostFree(buf);
             //free(buf);
@@ -220,10 +271,6 @@ void split_blocks(HPL_T_test *const test, const HPL_T_palg *const algo,
             //free(buf);
 
         }
-    }
-
-    for(auto& req : send_reqs) {
-        MPI_Wait(&req, MPI_STATUS_IGNORE);
     }
 
     if(grid->myrow == 0 && grid->mycol == 0) {
