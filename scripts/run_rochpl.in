@@ -285,6 +285,8 @@ else
   platform=IBM_AC922
 fi
 
+omp_places=""
+
 if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platform}" == "IBM_AC922" ]]; then
   # Special core mapping for BardPeak
 
@@ -311,7 +313,6 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platfo
       exit 1
     fi
     root_cores=(0 28 56 88 116 144)
-    omp_num_threads=$((7 * $smt_per_core))
     num_gpus_per_node=6
   else
     # override SMT per core for AMD systems
@@ -323,13 +324,16 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platfo
       exit 1
     fi
     root_cores=(48 56 16 24 0 8 32 40)
-    omp_num_threads=8
     num_gpus_per_node=8
   fi
+
+  # Fixed smt per core. NOTE: This is used in the logic below!
+  smt_per_core=1
   num_cpu_places=$((total_cpu_cores * smt_per_core))
   gpu_places_domain_size=$((total_cpu_cores * max_smt_per_core / num_gpus_per_node))
   num_places_per_gpu=$((num_cpu_places / num_gpus_per_node))
   smts_per_place=$((max_smt_per_core / smt_per_core))
+  omp_num_threads=$num_places_per_gpu
 
   echo Initial OMP num theads = $omp_num_threads
   echo Total CPU cores = $total_cpu_cores.
@@ -341,12 +345,12 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platfo
   root_core=${root_cores[mygpu]}
 
   # First omp place is the root core
-  omp_places="{$root_core}"
+  omp_places="{$root_core:$smt_per_core}"
 
   # First assign the CCD
-  for i in $(seq $((root_core+smts_per_place)) ${smts_per_place} $((root_core+gpu_places_domain_size-1)))
+  for i in $(seq $((root_core+smts_per_place)) ${max_smt_per_core} $((root_core+gpu_places_domain_size-1)))
   do
-    omp_places+=",{$i}"
+    omp_places+=",{$i:$smt_per_core}"
   done
 
   places="{$root_core-$((root_core+gpu_places_domain_size-1))}"
@@ -355,9 +359,9 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platfo
   for c in $(seq $((mygpu+size)) $size $((num_gpus_per_node-1)))
   do
     iroot_core=${root_cores[c]}
-    for i in $(seq $((iroot_core)) $smts_per_place $((iroot_core+gpu_places_domain_size-1)))
+    for i in $(seq $((iroot_core)) $max_smt_per_core $((iroot_core+gpu_places_domain_size-1)))
     do
-      omp_places+=",{$i}"
+      omp_places+=",{$i:$smt_per_core}"
     done
     omp_num_threads=$((omp_num_threads+num_places_per_gpu))
     places+=",{$iroot_core-$((iroot_core+gpu_places_domain_size-1))}"
@@ -376,9 +380,9 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platfo
         q_core=$((root_cores[q_gpu]))
         # If this GPU-core-domain is in use by a task, leave one OMP place for that task:
         offset=$(( (q_gpu>=size) ? 0 : smts_per_place))
-        for i in $(seq $((q_core+offset)) $smts_per_place $((q_core+gpu_places_domain_size-1)))
+        for i in $(seq $((q_core+offset)) $max_smt_per_core $((q_core+gpu_places_domain_size-1)))
         do
-          omp_places+=",{$i}"
+          omp_places+=",{$i:$smt_per_core}"
         done
         omp_num_threads=$((omp_num_threads+num_places_per_gpu-offset))
         places+=",{$((q_core+offset))-$((q_core+gpu_places_domain_size-1))}"
@@ -388,7 +392,6 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platfo
 
 else
   # Default core mapping
-  # This will be heavily sub-optimal with the OS regards hardware threads as "cores", as on Summit.
   root_core=$((myp*row_stride + myq*col_stride))
 
   omp_num_threads=${col_stride}
