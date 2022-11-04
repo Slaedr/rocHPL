@@ -98,6 +98,7 @@ smt_per_core=1
 filename=HPL.dat
 inputfile=false
 cmdrun=false
+outfilename=HPL.out
 
 export LD_LIBRARY_PATH=${rocblas_dir}:${blas_dir}:$LD_LIBRARY_PATH
 
@@ -110,7 +111,7 @@ oversubscribe=true
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,smt_per_core:,help,version, --options hP:Q:p:q:N:i:f: -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,smt_per_core:,help,version, --options hP:Q:p:q:N:i:f:o: -- "$@")
 else
   echo "Need a new version of getopt"
   exit 1
@@ -163,6 +164,9 @@ while true; do
         filename=${2}
         inputfile=true
         shift 2 ;;
+    -o)
+        outfilename=${2}
+        shift 2 ;;
     --) shift ; break ;;
     *)  echo "Unexpected command line parameter received; aborting";
         exit 1
@@ -208,7 +212,7 @@ elif [[ -n ${SLURM_LOCALID+x} ]]; then
 fi
 set -u
 
-echo Global rank $globalRank, size $globalSize, local rank $rank, local size $size.
+#echo Global rank $globalRank, size $globalSize, local rank $rank, local size $size.
 
 #Determing node-local grid size
 if [[ "$p" -lt 1 && "$q" -lt 1 ]]; then
@@ -335,12 +339,14 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platfo
   smts_per_place=$((max_smt_per_core / smt_per_core))
   omp_num_threads=$num_places_per_gpu
 
-  echo Initial OMP num theads = $omp_num_threads
-  echo Total CPU cores = $total_cpu_cores.
-  echo Number of OMP places to fill = $num_cpu_places.
-  echo Total hardware threads available per GPU on the system = $gpu_places_domain_size.
-  echo Number of hardware threads to use per GPU = $num_places_per_gpu.
-  echo Each OMP thread 'takes' $smts_per_place hardware threads.
+  if [[  $globalRank == 0 ]]; then
+    echo Initial OMP num theads = $omp_num_threads
+    echo Total CPU cores = $total_cpu_cores.
+    echo Number of OMP places to fill = $num_cpu_places.
+    echo Total hardware threads available per GPU on the system = $gpu_places_domain_size.
+    echo "Number of hardware \(CPU\) threads to use per GPU = $num_places_per_gpu."
+    #echo Each OMP thread 'takes' $smts_per_place hardware threads.
+  fi
 
   root_core=${root_cores[mygpu]}
 
@@ -380,11 +386,12 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platfo
         q_core=$((root_cores[q_gpu]))
         # If this GPU-core-domain is in use by a task, leave one OMP place for that task:
         offset=$(( (q_gpu>=size) ? 0 : smts_per_place))
+        num_places_offset=$(( (q_gpu>=size) ? 0 : 1))
         for i in $(seq $((q_core+offset)) $max_smt_per_core $((q_core+gpu_places_domain_size-1)))
         do
           omp_places+=",{$i:$smt_per_core}"
         done
-        omp_num_threads=$((omp_num_threads+num_places_per_gpu-offset))
+        omp_num_threads=$((omp_num_threads+num_places_per_gpu-num_places_offset))
         places+=",{$((q_core+offset))-$((q_core+gpu_places_domain_size-1))}"
       done
     done
@@ -439,13 +446,15 @@ export OMP_NUM_THREADS=${omp_num_threads}
 export OMP_PLACES=${omp_places}
 export OMP_PROC_BIND=true
 
-echo "Rank $globalRank: Num threads = $OMP_NUM_THREADS, places = $OMP_PLACES."
+if [[  $globalRank == $((globalSize-1)) ]]; then
+  echo "Rank $globalRank: Num threads = $OMP_NUM_THREADS, places = $OMP_PLACES."
+fi
 
 if [[ $globalRank -lt $size ]]; then
   echo "Node Binding: Process $rank [(p,q)=($myp,$myq)] CPU Cores: $omp_num_threads - $places"
 fi
 
-rochpl_args="-P ${P} -Q ${Q} -p ${p} -q ${q} -f ${frac}"
+rochpl_args="-P ${P} -Q ${Q} -p ${p} -q ${q} -f ${frac} -o ${outfilename}"
 if [[ "${inputfile}" == true ]]; then
   rochpl_args+=" -i ${filename}"
 else

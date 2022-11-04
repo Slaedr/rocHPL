@@ -222,7 +222,8 @@ void HPL_pdinfo(int          ARGC,
   FILE* infp;
   int*  iwork = NULL;
   char* lineptr;
-  int   error = 0, fid, i, j, lwork, maxp, nprocs, rank, size;
+  int   fid, i, j, lwork, maxp, nprocs, rank, size;
+  int *error = (int*)malloc(sizeof(int));
 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -241,6 +242,7 @@ void HPL_pdinfo(int          ARGC,
   bool        inputfile     = false;
   double      frac          = 0.6;
   std::string inputFileName = "HPL.dat";
+  std::string out_file_name = "HPL.out";
 
   for(int i = 1; i < ARGC; i++) {
     if(strcmp(ARGV[i], "-h") == 0 || strcmp(ARGV[i], "--help") == 0) {
@@ -364,6 +366,10 @@ void HPL_pdinfo(int          ARGC,
     }
     if(strcmp(ARGV[i], "-f") == 0 || strcmp(ARGV[i], "--frac") == 0) {
       frac = atof(ARGV[i + 1]);
+      i++;
+    }
+    if(strcmp(ARGV[i], "-o") == 0 || strcmp(ARGV[i], "--out_file_name") == 0) {
+      out_file_name = ARGV[i + 1];
       i++;
     }
     if(strcmp(ARGV[i], "-i") == 0 || strcmp(ARGV[i], "--input") == 0) {
@@ -544,11 +550,12 @@ void HPL_pdinfo(int          ARGC,
      */
     TEST->epsil = HPL_pdlamch(MPI_COMM_WORLD, HPL_MACH_EPS);
 
+    *error = 0;
     if(rank == 0) {
-      if((TEST->outfp = fopen("HPL.out", "w")) == NULL) { error = 1; }
+      if((TEST->outfp = fopen(out_file_name.c_str(), "w")) == NULL) { *error = 1; }
     }
-    (void)HPL_all_reduce((void*)(&error), 1, HPL_INT, HPL_MAX, MPI_COMM_WORLD);
-    if(error) {
+    (void)HPL_all_reduce((void*)(error), 1, HPL_INT, HPL_MAX, MPI_COMM_WORLD);
+    if(*error) {
       if(rank == 0)
         HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "cannot open file HPL.out.");
       MPI_Finalize();
@@ -570,7 +577,7 @@ void HPL_pdinfo(int          ARGC,
                   "HPL_pdinfo",
                   "cannot open file %s",
                   inputFileName.c_str());
-        error = 1;
+        *error = 1;
         goto label_error;
       }
 
@@ -590,7 +597,7 @@ void HPL_pdinfo(int          ARGC,
         TEST->outfp = stderr;
       else if((TEST->outfp = fopen(file, "w")) == NULL) {
         HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "cannot open file %s.", file);
-        error = 1;
+        *error = 1;
         goto label_error;
       }
       /*
@@ -608,7 +615,7 @@ void HPL_pdinfo(int          ARGC,
                   "%s %d",
                   "Number of values of N is less than 1 or greater than",
                   HPL_MAX_PARAM);
-        error = 1;
+        *error = 1;
         goto label_error;
       }
 
@@ -619,7 +626,7 @@ void HPL_pdinfo(int          ARGC,
         lineptr += strlen(num) + 1;
         if((N[i] = atoi(num)) < 0) {
           HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "Value of N less than 0");
-          error = 1;
+          *error = 1;
           goto label_error;
         }
       }
@@ -637,7 +644,7 @@ void HPL_pdinfo(int          ARGC,
                   "Number of values of NB is less than 1 or",
                   "greater than",
                   HPL_MAX_PARAM);
-        error = 1;
+        *error = 1;
         goto label_error;
       }
 
@@ -648,7 +655,7 @@ void HPL_pdinfo(int          ARGC,
         lineptr += strlen(num) + 1;
         if((NB[i] = atoi(num)) < 1) {
           HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "Value of NB less than 1");
-          error = 1;
+          *error = 1;
           goto label_error;
         }
       }
@@ -670,7 +677,7 @@ void HPL_pdinfo(int          ARGC,
                   "Number of values of grids is less",
                   "than 1 or greater than",
                   HPL_MAX_PARAM);
-        error = 1;
+        *error = 1;
         goto label_error;
       }
 
@@ -681,7 +688,7 @@ void HPL_pdinfo(int          ARGC,
         lineptr += strlen(num) + 1;
         if((P[i] = atoi(num)) < 1) {
           HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "Value of P less than 1");
-          error = 1;
+          *error = 1;
           goto label_error;
         }
       }
@@ -692,7 +699,7 @@ void HPL_pdinfo(int          ARGC,
         lineptr += strlen(num) + 1;
         if((Q[i] = atoi(num)) < 1) {
           HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "Value of Q less than 1");
-          error = 1;
+          *error = 1;
           goto label_error;
         }
       }
@@ -710,7 +717,7 @@ void HPL_pdinfo(int          ARGC,
                   "HPL_pdinfo",
                   "Need at least %d processes for these tests",
                   maxp);
-        error = 1;
+        *error = 1;
         goto label_error;
       }
       /*
@@ -733,7 +740,7 @@ void HPL_pdinfo(int          ARGC,
                   "number of values of PFACT",
                   "is less than 1 or greater than",
                   HPL_MAX_PARAM);
-        error = 1;
+        *error = 1;
         goto label_error;
       }
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
@@ -765,7 +772,7 @@ void HPL_pdinfo(int          ARGC,
                   "Number of values of NBMIN",
                   "is less than 1 or greater than",
                   HPL_MAX_PARAM);
-        error = 1;
+        *error = 1;
         goto label_error;
       }
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
@@ -776,7 +783,7 @@ void HPL_pdinfo(int          ARGC,
         if((NBM[i] = atoi(num)) < 1) {
           HPL_pwarn(
               stderr, __LINE__, "HPL_pdinfo", "Value of NBMIN less than 1");
-          error = 1;
+          *error = 1;
           goto label_error;
         }
       }
@@ -794,7 +801,7 @@ void HPL_pdinfo(int          ARGC,
                   "Number of values of NDIV",
                   "is less than 1 or greater than",
                   HPL_MAX_PARAM);
-        error = 1;
+        *error = 1;
         goto label_error;
       }
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
@@ -805,7 +812,7 @@ void HPL_pdinfo(int          ARGC,
         if((NDV[i] = atoi(num)) < 2) {
           HPL_pwarn(
               stderr, __LINE__, "HPL_pdinfo", "Value of NDIV less than 2");
-          error = 1;
+          *error = 1;
           goto label_error;
         }
       }
@@ -823,7 +830,7 @@ void HPL_pdinfo(int          ARGC,
                   "Number of values of RFACT",
                   "is less than 1 or greater than",
                   HPL_MAX_PARAM);
-        error = 1;
+        *error = 1;
         goto label_error;
       }
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
@@ -855,7 +862,7 @@ void HPL_pdinfo(int          ARGC,
                   "Number of values of BCAST",
                   "is less than 1 or greater than",
                   HPL_MAX_PARAM);
-        error = 1;
+        *error = 1;
         goto label_error;
       }
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
@@ -891,7 +898,7 @@ void HPL_pdinfo(int          ARGC,
                   "Number of values of DEPTH",
                   "is less than 1 or greater than",
                   HPL_MAX_PARAM);
-        error = 1;
+        *error = 1;
         goto label_error;
       }
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
@@ -902,13 +909,13 @@ void HPL_pdinfo(int          ARGC,
         if((DH[i] = atoi(num)) < 0) {
           HPL_pwarn(
               stderr, __LINE__, "HPL_pdinfo", "Value of DEPTH less than 0");
-          error = 1;
+          *error = 1;
           goto label_error;
         }
         // NC: We require lookahead depth of 1
         if(DH[i] != 1) {
           HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "Value of DEPTH must be 1");
-          error = 1;
+          *error = 1;
           goto label_error;
         }
       }
@@ -929,7 +936,7 @@ void HPL_pdinfo(int          ARGC,
       // NC: Only one rowswapping algorithm implemented
       if(*FSWAP != HPL_SWAP01) {
         HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "Value of SWAP must be 1");
-        error = 1;
+        *error = 1;
         goto label_error;
       }
       /*
@@ -960,7 +967,7 @@ void HPL_pdinfo(int          ARGC,
                   __LINE__,
                   "HPL_pdinfo",
                   "U  in no-transposed form unsupported");
-        error = 1;
+        *error = 1;
         goto label_error;
       }
       /*
@@ -977,7 +984,7 @@ void HPL_pdinfo(int          ARGC,
                   __LINE__,
                   "HPL_pdinfo",
                   "Equilibration currently unsupported");
-        error = 1;
+        *error = 1;
         goto label_error;
       }
       /*
@@ -1000,8 +1007,8 @@ void HPL_pdinfo(int          ARGC,
     /*
      * Check for error on reading input file
      */
-    (void)HPL_all_reduce((void*)(&error), 1, HPL_INT, HPL_MAX, MPI_COMM_WORLD);
-    if(error) {
+    (void)HPL_all_reduce((void*)(error), 1, HPL_INT, HPL_MAX, MPI_COMM_WORLD);
+    if(*error) {
       if(rank == 0)
         HPL_pwarn(stderr,
                   __LINE__,
@@ -1010,6 +1017,7 @@ void HPL_pdinfo(int          ARGC,
       MPI_Finalize();
       exit(1);
     }
+    free(error);
     /*
      * Compute and broadcast machine epsilon
      */
@@ -1321,6 +1329,11 @@ void HPL_pdinfo(int          ARGC,
         for(i = 16; i < *NPQS; i++) HPL_fprintf(TEST->outfp, "%8d ", Q[i]);
       }
     }
+    // Local process grid
+    HPL_fprintf(TEST->outfp, "\np      :");
+    HPL_fprintf(TEST->outfp, "%8d ", *p);
+    HPL_fprintf(TEST->outfp, "\nq      :");
+    HPL_fprintf(TEST->outfp, "%8d ", *q);
     /*
      * Panel Factorization
      */
