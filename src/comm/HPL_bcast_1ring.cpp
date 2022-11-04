@@ -108,7 +108,7 @@ int HPL_bcast_1ring_sync(double* SBUF, int SCOUNT, int ROOT, MPI_Comm COMM) {
   MPI_Comm_size(COMM, &size);
 
   if(size <= 1) return (MPI_SUCCESS);
-
+  MPI_Status myStatus;
   /*One ring exchange to rule them all*/
   int chunk_size = 512 * 512; // 2MB
 
@@ -126,7 +126,7 @@ int HPL_bcast_1ring_sync(double* SBUF, int SCOUNT, int ROOT, MPI_Comm COMM) {
 
   /*Recv from left*/
   int Nr = Nrecv;
-  if(Nr > 0) { MPI_recv(RBUF, Nr, MPI_DOUBLE, prev, prev, COMM); }
+  if(Nr > 0) { MPI_recv(RBUF, Nr, MPI_DOUBLE, prev, prev, COMM,&myStatus); }
 
   /*Send to right if there is data present to send*/
   int Ns = Nsend;
