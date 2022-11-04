@@ -219,7 +219,6 @@ void HPL_pdinfo(int          ARGC,
 
   char file[HPL_LINE_MAX], line[HPL_LINE_MAX], auth[HPL_LINE_MAX],
       num[HPL_LINE_MAX];
-  FILE* infp;
   int*  iwork = NULL;
   char* lineptr;
   int   fid, i, j, lwork, maxp, nprocs, rank, size;
@@ -571,6 +570,7 @@ void HPL_pdinfo(int          ARGC,
       /*
        * Open file and skip data file header
        */
+      FILE* infp;
       if((infp = fopen(inputFileName.c_str(), "r")) == NULL) {
         HPL_pwarn(stderr,
                   __LINE__,
@@ -578,7 +578,7 @@ void HPL_pdinfo(int          ARGC,
                   "cannot open file %s",
                   inputFileName.c_str());
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
 
       status = fgets(line, HPL_LINE_MAX - 2, infp);
@@ -598,7 +598,7 @@ void HPL_pdinfo(int          ARGC,
       else if((TEST->outfp = fopen(file, "w")) == NULL) {
         HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "cannot open file %s.", file);
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
       /*
        * Read and check the parameter values for the tests.
@@ -616,7 +616,7 @@ void HPL_pdinfo(int          ARGC,
                   "Number of values of N is less than 1 or greater than",
                   HPL_MAX_PARAM);
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
 
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
@@ -627,7 +627,7 @@ void HPL_pdinfo(int          ARGC,
         if((N[i] = atoi(num)) < 0) {
           HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "Value of N less than 0");
           *error = 1;
-          goto label_error;
+          fclose(infp);
         }
       }
       /*
@@ -645,7 +645,7 @@ void HPL_pdinfo(int          ARGC,
                   "greater than",
                   HPL_MAX_PARAM);
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
 
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
@@ -656,7 +656,7 @@ void HPL_pdinfo(int          ARGC,
         if((NB[i] = atoi(num)) < 1) {
           HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "Value of NB less than 1");
           *error = 1;
-          goto label_error;
+          fclose(infp);
         }
       }
       /*
@@ -678,7 +678,7 @@ void HPL_pdinfo(int          ARGC,
                   "than 1 or greater than",
                   HPL_MAX_PARAM);
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
 
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
@@ -689,7 +689,7 @@ void HPL_pdinfo(int          ARGC,
         if((P[i] = atoi(num)) < 1) {
           HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "Value of P less than 1");
           *error = 1;
-          goto label_error;
+          fclose(infp);
         }
       }
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
@@ -700,7 +700,7 @@ void HPL_pdinfo(int          ARGC,
         if((Q[i] = atoi(num)) < 1) {
           HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "Value of Q less than 1");
           *error = 1;
-          goto label_error;
+          fclose(infp);
         }
       }
       /*
@@ -718,7 +718,7 @@ void HPL_pdinfo(int          ARGC,
                   "Need at least %d processes for these tests",
                   maxp);
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
       /*
        * Checking threshold value (TEST->thrsh)
@@ -741,7 +741,7 @@ void HPL_pdinfo(int          ARGC,
                   "is less than 1 or greater than",
                   HPL_MAX_PARAM);
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
       lineptr = line;
@@ -773,7 +773,7 @@ void HPL_pdinfo(int          ARGC,
                   "is less than 1 or greater than",
                   HPL_MAX_PARAM);
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
       lineptr = line;
@@ -784,7 +784,7 @@ void HPL_pdinfo(int          ARGC,
           HPL_pwarn(
               stderr, __LINE__, "HPL_pdinfo", "Value of NBMIN less than 1");
           *error = 1;
-          goto label_error;
+          fclose(infp);
         }
       }
       /*
@@ -802,7 +802,7 @@ void HPL_pdinfo(int          ARGC,
                   "is less than 1 or greater than",
                   HPL_MAX_PARAM);
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
       lineptr = line;
@@ -813,7 +813,7 @@ void HPL_pdinfo(int          ARGC,
           HPL_pwarn(
               stderr, __LINE__, "HPL_pdinfo", "Value of NDIV less than 2");
           *error = 1;
-          goto label_error;
+          fclose(infp);
         }
       }
       /*
@@ -831,7 +831,7 @@ void HPL_pdinfo(int          ARGC,
                   "is less than 1 or greater than",
                   HPL_MAX_PARAM);
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
       lineptr = line;
@@ -863,7 +863,7 @@ void HPL_pdinfo(int          ARGC,
                   "is less than 1 or greater than",
                   HPL_MAX_PARAM);
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
       lineptr = line;
@@ -899,7 +899,7 @@ void HPL_pdinfo(int          ARGC,
                   "is less than 1 or greater than",
                   HPL_MAX_PARAM);
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
       status  = fgets(line, HPL_LINE_MAX - 2, infp);
       lineptr = line;
@@ -910,13 +910,13 @@ void HPL_pdinfo(int          ARGC,
           HPL_pwarn(
               stderr, __LINE__, "HPL_pdinfo", "Value of DEPTH less than 0");
           *error = 1;
-          goto label_error;
+          fclose(infp);
         }
         // NC: We require lookahead depth of 1
         if(DH[i] != 1) {
           HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "Value of DEPTH must be 1");
           *error = 1;
-          goto label_error;
+          fclose(infp);
         }
       }
       /*
@@ -937,7 +937,7 @@ void HPL_pdinfo(int          ARGC,
       if(*FSWAP != HPL_SWAP01) {
         HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "Value of SWAP must be 1");
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
       /*
        * Swapping threshold (>=0) (TSWAP)
@@ -968,7 +968,7 @@ void HPL_pdinfo(int          ARGC,
                   "HPL_pdinfo",
                   "U  in no-transposed form unsupported");
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
       /*
        * Equilibration (0=no, 1=yes)
@@ -985,7 +985,7 @@ void HPL_pdinfo(int          ARGC,
                   "HPL_pdinfo",
                   "Equilibration currently unsupported");
         *error = 1;
-        goto label_error;
+        fclose(infp);
       }
       /*
        * Memory alignment in bytes (> 0) (ALIGN)
@@ -994,12 +994,6 @@ void HPL_pdinfo(int          ARGC,
       (void)sscanf(line, "%s", num);
       *ALIGN = atoi(num);
       if(*ALIGN <= 0) *ALIGN = 4;
-
-      /*
-       * Close input file
-       */
-    label_error:
-      (void)fclose(infp);
     } else {
       TEST->outfp = NULL;
     }
