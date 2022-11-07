@@ -229,7 +229,7 @@ void HPL_pdinfo(int          ARGC,
   /*
    * Initialize the TEST data structure with default values
    */
-  TEST->outfp = stderr;
+  TEST->outfp = NULL;
   TEST->epsil = 2.0e-16;
   TEST->thrsh = 16.0;
   TEST->kfail = TEST->kpass = TEST->kskip = TEST->ktest = 0;
@@ -376,6 +376,39 @@ void HPL_pdinfo(int          ARGC,
       inputfile     = true;
       i++;
     }
+        
+    if(strcmp(ARGV[i], "--bcast_algo") == 0) {
+      /*
+       * Broadcast topology (TP)
+       */
+      *NTPS = 1;
+      const std::string bcast_algo = ARGV[i + 1];
+      i++;
+      if(bcast_algo == "1ring")
+        TP[0] = HPL_1RING;
+      else if(bcast_algo == "1ringm")
+        TP[0] = HPL_1RING_M;
+      else if(bcast_algo == "2ring")
+        TP[0] = HPL_2RING;
+      else if(bcast_algo == "2ringm")
+        TP[0] = HPL_2RING_M;
+      else if(bcast_algo == "blong")
+        TP[0] = HPL_BLONG;
+      else if(bcast_algo == "blongm")
+        TP[0] = HPL_BLONG_M;
+      else if(bcast_algo == "1ring_sync") {
+        TP[0] = HPL_1RING_SYNC;
+      } else if(bcast_algo == "mpi_bcast") {
+        TP[0] = HPL_MPI_BCAST;
+      }
+      else {
+        HPL_pwarn(stderr,
+                  __LINE__,
+                  "HPL_pdinfo",
+                  "%s %s",
+                  "Unsupported Value of BCAST", j);
+      }
+    }
   }
 
   /*
@@ -467,6 +500,23 @@ void HPL_pdinfo(int          ARGC,
   *p = _p;
   *q = _q;
 
+  *error = 0;
+  if(rank == 0) {
+    printf("Opening output file %s.\n", out_file_name.c_str()); fflush(stdout);
+    TEST->outfp = fopen(out_file_name.c_str(), "w");
+    if(!TEST->outfp) {
+        *error = 1;
+        printf("Could not open hPL.out file %s!\n", out_file_name.c_str()); fflush(stdout);
+    }
+  }
+  (void)HPL_all_reduce((void*)(error), 1, HPL_INT, HPL_MAX, MPI_COMM_WORLD);
+  if(*error) {
+    if(rank == 0)
+      HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "cannot open file HPL.out.");
+    MPI_Finalize();
+    exit(1);
+  }
+
   if(inputfile == false && cmdlinerun == true) {
     // We were given run paramters via the cmd line so skip
     // trying to read from an input file and just fill a
@@ -510,11 +560,6 @@ void HPL_pdinfo(int          ARGC,
     *NRFS = 1;
     RF[0] = HPL_RIGHT_LOOKING; // HPL_LEFT_LOOKING, HPL_CROUT;
     /*
-     * Broadcast topology (TP) (0=rg, 1=2rg, 2=rgM, 3=2rgM, 4=L)
-     */
-    *NTPS = 1;
-    TP[0] = HPL_1RING;
-    /*
      * Lookahead depth (>=0) (NDH)
      */
     *NDHS = 1;
@@ -548,19 +593,8 @@ void HPL_pdinfo(int          ARGC,
      * Compute and broadcast machine epsilon
      */
     TEST->epsil = HPL_pdlamch(MPI_COMM_WORLD, HPL_MACH_EPS);
-
-    *error = 0;
-    if(rank == 0) {
-      if((TEST->outfp = fopen(out_file_name.c_str(), "w")) == NULL) { *error = 1; }
-    }
-    (void)HPL_all_reduce((void*)(error), 1, HPL_INT, HPL_MAX, MPI_COMM_WORLD);
-    if(*error) {
-      if(rank == 0)
-        HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "cannot open file HPL.out.");
-      MPI_Finalize();
-      exit(1);
-    }
-  } else {
+  }
+  else {
     /*
      * Process 0 reads the input data, broadcasts to other processes and
      * writes needed information to TEST->outfp.
@@ -590,15 +624,17 @@ void HPL_pdinfo(int          ARGC,
       (void)sscanf(line, "%s", file);
       status = fgets(line, HPL_LINE_MAX - 2, infp);
       (void)sscanf(line, "%s", num);
-      fid = atoi(num);
-      if(fid == 6)
-        TEST->outfp = stdout;
-      else if(fid == 7)
-        TEST->outfp = stderr;
-      else if((TEST->outfp = fopen(file, "w")) == NULL) {
-        HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "cannot open file %s.", file);
-        *error = 1;
-        fclose(infp);
+      if(!TEST->outfp) {
+        fid = atoi(num);
+        if(fid == 6)
+          TEST->outfp = stdout;
+        else if(fid == 7)
+          TEST->outfp = stderr;
+        else if((TEST->outfp = fopen(file, "w")) == NULL) {
+          HPL_pwarn(stderr, __LINE__, "HPL_pdinfo", "cannot open file %s.", file);
+          *error = 1;
+          fclose(infp);
+        }
       }
       /*
        * Read and check the parameter values for the tests.
@@ -881,8 +917,22 @@ void HPL_pdinfo(int          ARGC,
           TP[i] = HPL_2RING_M;
         else if(j == 4)
           TP[i] = HPL_BLONG;
-        else // if(j == 5)
+        else if(j == 5)
           TP[i] = HPL_BLONG_M;
+        else if(j == 6) {
+          TP[i] = HPL_1RING_SYNC;
+        } else if(j == 10) {
+          TP[i] = HPL_MPI_BCAST;
+        }
+        else {
+          HPL_pwarn(stderr,
+                    __LINE__,
+                    "HPL_pdinfo",
+                    "%s %d",
+                    "Unsupported Value of BCAST", j);
+          *error = 1;
+          fclose(infp);
+        }
       }
       /*
        * Lookahead depth (>=0) (NDH)
@@ -1443,6 +1493,10 @@ void HPL_pdinfo(int          ARGC,
         HPL_fprintf(TEST->outfp, "   Blong ");
       else if(TP[i] == HPL_BLONG_M)
         HPL_fprintf(TEST->outfp, "  BlongM ");
+      else if(TP[i] == HPL_1RING_SYNC)
+        HPL_fprintf(TEST->outfp, " 1ring_sync");
+      else if(TP[i] == HPL_MPI_BCAST)
+        HPL_fprintf(TEST->outfp, " mpi_bcast");
     }
     if(*NTPS > 8) {
       HPL_fprintf(TEST->outfp, "\n        ");

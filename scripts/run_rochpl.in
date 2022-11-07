@@ -94,6 +94,7 @@ N=45312
 NB=384
 frac=0.6
 smt_per_core=1
+bcast_algo=1ring
 
 filename=HPL.dat
 inputfile=false
@@ -111,7 +112,7 @@ oversubscribe=true
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,smt_per_core:,help,version, --options hP:Q:p:q:N:i:f:o: -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,bcast_algo:,help,version, --options hP:Q:p:q:N:i:f:o: -- "$@")
 else
   echo "Need a new version of getopt"
   exit 1
@@ -157,8 +158,8 @@ while true; do
     -f)
         frac=${2}
         shift 2 ;;
-    --smt_per_core)
-        smt_per_core=${2}
+    --bcast_algo)
+        bcast_algo=${2}
         shift 2 ;;
     -i)
         filename=${2}
@@ -454,7 +455,7 @@ if [[ $globalRank -lt $size ]]; then
   echo "Node Binding: Process $rank [(p,q)=($myp,$myq)] CPU Cores: $omp_num_threads - $places"
 fi
 
-rochpl_args="-P ${P} -Q ${Q} -p ${p} -q ${q} -f ${frac} -o ${outfilename}"
+rochpl_args="-P ${P} -Q ${Q} -p ${p} -q ${q} -f ${frac} --bcast_algo ${bcast_algo} -o ${outfilename}"
 if [[ "${inputfile}" == true ]]; then
   rochpl_args+=" -i ${filename}"
 else

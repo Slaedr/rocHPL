@@ -35,6 +35,8 @@ typedef enum {
   HPL_2RING_M = 404, /* Bidirectional ring (modified) */
   HPL_BLONG   = 405, /* long broadcast */
   HPL_BLONG_M = 406, /* long broadcast (modified) */
+  HPL_1RING_SYNC = 407, /* Unidirection un-chunked syncd ring */
+  HPL_MPI_BCAST = 410 /* MPI_Bcast */
 } HPL_T_TOP;
 
 typedef MPI_Op HPL_T_OP;
@@ -62,6 +64,7 @@ int HPL_recv(double*, int, int, int, MPI_Comm);
 int HPL_sdrv(double*, int, int, double*, int, int, int, MPI_Comm);
 int HPL_bcast(double*, int, int, MPI_Comm, HPL_T_TOP top);
 int HPL_bcast_1ring(double* SBUF, int SCOUNT, int ROOT, MPI_Comm COMM);
+int HPL_bcast_1ring_sync(double* SBUF, int SCOUNT, int ROOT, MPI_Comm COMM);
 int HPL_bcast_1rinM(double* SBUF, int SCOUNT, int ROOT, MPI_Comm COMM);
 int HPL_bcast_2ring(double* SBUF, int SCOUNT, int ROOT, MPI_Comm COMM);
 int HPL_bcast_2rinM(double* SBUF, int SCOUNT, int ROOT, MPI_Comm COMM);

@@ -72,6 +72,12 @@ int HPL_bcast(double*   SBUF,
     case HPL_2RING: ierr = HPL_bcast_2ring(SBUF, SCOUNT, ROOT, COMM); break;
     case HPL_BLONG_M: ierr = HPL_bcast_blonM(SBUF, SCOUNT, ROOT, COMM); break;
     case HPL_BLONG: ierr = HPL_bcast_blong(SBUF, SCOUNT, ROOT, COMM); break;
+    case HPL_1RING_SYNC:
+        ierr = HPL_bcast_1ring_sync(SBUF, SCOUNT, ROOT, COMM);
+        break;
+    case HPL_MPI_BCAST:
+        ierr = MPI_Bcast(SBUF, SCOUNT, MPI_DOUBLE, ROOT, COMM);
+        break;
     default: ierr = HPL_FAILURE;
   }
 

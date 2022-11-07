@@ -275,8 +275,9 @@ int main(int ARGC, char** ARGV) {
                 "========================================",
                 "========================================");
 
-    if((test.outfp != stdout) && (test.outfp != stderr))
+    if((test.outfp != stdout) && (test.outfp != stderr)) {
       (void)fclose(test.outfp);
+    }
   }
 
   MPI_Finalize();
