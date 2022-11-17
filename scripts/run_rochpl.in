@@ -192,6 +192,13 @@ if [[ "$smt_per_core" -ne 1 && "$smt_per_core" -ne 2 && "$smt_per_core" -ne 4 ]]
   exit 1
 fi
 
+if [[ -n ${HPL_PLATFORM+x} ]]; then
+  platform=$HPL_PLATFORM
+else
+  #platform=$(cat /sys/class/dmi/id/product_name)
+  platform=IBM_AC922
+fi
+
 #######################################
 # Now figure out the CPU core mappings
 #######################################
@@ -201,11 +208,15 @@ set +u
 if [[ -n ${OMPI_COMM_WORLD_LOCAL_RANK+x} ]]; then
   globalRank=$OMPI_COMM_WORLD_RANK
   globalSize=$OMPI_COMM_WORLD_SIZE
+  node_rank=$OMPI_COMM_WORLD_LOCAL_RANK
+  node_size=$OMPI_COMM_WORLD_LOCAL_SIZE
   rank=$OMPI_COMM_WORLD_LOCAL_RANK
   size=$OMPI_COMM_WORLD_LOCAL_SIZE
 elif [[ -n ${SLURM_LOCALID+x} ]]; then
   globalRank=$SLURM_PROCID
   globalSize=$SLURM_NTASKS
+  node_rank=$SLURM_LOCALID
+  node_size=$SLURM_TASKS_PER_NODE
   rank=$SLURM_LOCALID
   size=$SLURM_TASKS_PER_NODE
   #Slurm can return a string like "2(x2),1". Get the first number
@@ -213,7 +224,11 @@ elif [[ -n ${SLURM_LOCALID+x} ]]; then
 fi
 set -u
 
-#echo Global rank $globalRank, size $globalSize, local rank $rank, local size $size.
+# Restrict local size to single socket
+if [[ $platform == "IBM_AC922" ]]; then
+    size=$((size / 2))
+    rank=$((rank % 3))
+fi
 
 #Determing node-local grid size
 if [[ "$p" -lt 1 && "$q" -lt 1 ]]; then
@@ -282,14 +297,6 @@ myq=$((rank/p))
 #Although ranks are column-major order, we select GPUs in row-major order on node
 mygpu=$((myq+myp*q))
 
-# Try to detect special Bard-peak core mapping
-if [[ -n ${HPL_PLATFORM+x} ]]; then
-  platform=$HPL_PLATFORM
-else
-  #platform=$(cat /sys/class/dmi/id/product_name)
-  platform=IBM_AC922
-fi
-
 omp_places=""
 
 if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platform}" == "IBM_AC922" ]]; then
@@ -317,8 +324,19 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platfo
       echo "Unsupported number of ranks on IBM AC922 platform; aborting";
       exit 1
     fi
-    root_cores=(0 28 56 88 116 144)
+    root_cores=
     num_gpus_per_node=6
+    num_gpus_per_socket=3
+    if [[ $node_size -gt $num_gpus_per_node ]]; then
+        echo "Num ranks per node greater than num GPUs per node! Unsupported."
+        exit 1
+    fi
+    my_socket=$((node_rank / num_gpus_per_socket))
+    if [[ $my_socket -eq 0 ]]; then
+        root_cores=(0 28 56)
+    else
+        root_cores=(88 116 144)
+    fi
   else
     # override SMT per core for AMD systems
     smt_per_core=1
@@ -330,6 +348,7 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platfo
     fi
     root_cores=(48 56 16 24 0 8 32 40)
     num_gpus_per_node=8
+    num_gpus_per_socket=8
   fi
 
   # Fixed smt per core. NOTE: This is used in the logic below!
@@ -346,10 +365,10 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platfo
     echo Number of OMP places to fill = $num_cpu_places.
     echo Total hardware threads available per GPU on the system = $gpu_places_domain_size.
     echo "Number of hardware \(CPU\) threads to use per GPU = $num_places_per_gpu."
-    #echo Each OMP thread 'takes' $smts_per_place hardware threads.
   fi
 
   root_core=${root_cores[mygpu]}
+  #root_socket=$((mygpu / num_gpus_per_socket))
 
   # First omp place is the root core
   omp_places="{$root_core:$smt_per_core}"
@@ -363,7 +382,7 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platfo
   places="{$root_core-$((root_core+gpu_places_domain_size-1))}"
 
   # Loop through unassigned CCDs
-  for c in $(seq $((mygpu+size)) $size $((num_gpus_per_node-1)))
+  for c in $(seq $((mygpu+size)) $size $((num_gpus_per_socket-1)))
   do
     iroot_core=${root_cores[c]}
     for i in $(seq $((iroot_core)) $max_smt_per_core $((iroot_core+gpu_places_domain_size-1)))
@@ -381,7 +400,7 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" || "${platfo
       if [[ "$j" == "$myq" ]]; then
         continue
       fi
-      for jj in $(seq 0 $size $((num_gpus_per_node-1)))
+      for jj in $(seq 0 $size $((num_gpus_per_socket-1)))
       do
         q_gpu=$((jj+j+myp*q))
         q_core=$((root_cores[q_gpu]))

@@ -433,8 +433,17 @@ void HPL_pdinfo(int          ARGC,
 
   /*Node-local grid*/
   MPI_Comm nodeComm;
+#ifdef OMPI_MAJOR_VERSION
+  if(rank == 0) {
+      printf("Using socket-split to set local grid (p,q).\n");
+      fflush(stdout);
+  }
+  MPI_Comm_split_type(
+      MPI_COMM_WORLD, OMPI_COMM_TYPE_SOCKET, rank, MPI_INFO_NULL, &nodeComm);
+#else
   MPI_Comm_split_type(
       MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, rank, MPI_INFO_NULL, &nodeComm);
+#endif
 
   int localRank;
   int localSize;
