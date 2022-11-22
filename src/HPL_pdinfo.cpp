@@ -242,6 +242,9 @@ void HPL_pdinfo(int          ARGC,
   double      frac          = 0.6;
   std::string inputFileName = "HPL.dat";
   std::string out_file_name = "HPL.out";
+  // default broadcast
+  *NTPS = 1;
+  TP[0] = HPL_1RING;
 
   for(int i = 1; i < ARGC; i++) {
     if(strcmp(ARGV[i], "-h") == 0 || strcmp(ARGV[i], "--help") == 0) {
@@ -505,8 +508,8 @@ void HPL_pdinfo(int          ARGC,
     printf("Opening output file %s.\n", out_file_name.c_str()); fflush(stdout);
     TEST->outfp = fopen(out_file_name.c_str(), "w");
     if(!TEST->outfp) {
-        *error = 1;
         printf("Could not open hPL.out file %s!\n", out_file_name.c_str()); fflush(stdout);
+        *error = 1;
     }
   }
   (void)HPL_all_reduce((void*)(error), 1, HPL_INT, HPL_MAX, MPI_COMM_WORLD);
