@@ -21,7 +21,6 @@
  * ---------------------------------------------------------------------
  */
 #include "hpl_misc.hpp"
-#include "hpl_blas.hpp"
 #include "hpl_auxil.hpp"
 
 #include "hpl_pmisc.hpp"

@@ -22,17 +22,15 @@
  */
 #include <string>
 
-#include "hpl_misc.hpp"
-#include "hpl_blas.hpp"
 #include "hpl_auxil.hpp"
 
 #include "hpl_pmisc.hpp"
 #include "hpl_pauxil.hpp"
 #include "hpl_panel.hpp"
 #include "hpl_pgesv.hpp"
+#include "hpl_pmat.hpp"
 
 #include "hpl_ptimer.hpp"
-#include "hpl_pmatgen.hpp"
 
 /*
  * ---------------------------------------------------------------------

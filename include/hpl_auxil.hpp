@@ -20,8 +20,7 @@
  * Include files
  * ---------------------------------------------------------------------
  */
-#include "hpl_misc.hpp"
-#include "hpl_blas.hpp"
+#include <cstdio>
 /*
  * ---------------------------------------------------------------------
  * typedef definitions

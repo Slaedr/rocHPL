@@ -8,8 +8,10 @@
  * ---------------------------------------------------------------------
  */
 
-#include "hpl.hpp"
 #include <algorithm>
+
+#include "hpl.hpp"
+#include "hpl_events.hpp"
 
 rocblas_handle handle;
 

@@ -15,6 +15,7 @@
  */
 
 #include "hpl.hpp"
+#include "hpl_events.hpp"
 
 void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
   /*

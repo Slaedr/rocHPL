@@ -15,6 +15,7 @@
  */
 
 #include "hpl.hpp"
+#include "hpl_events.hpp"
 
 void HPL_pdlaswp_start(HPL_T_panel* PANEL, const HPL_T_UPD UPD) {
   /*

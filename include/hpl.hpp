@@ -24,8 +24,8 @@
 #define HPL_NO_DETAILED_TIMING
 #endif
 
-//#undef HPL_USE_COLLECTIVES
-#define HPL_USE_COLLECTIVES
+#undef HPL_USE_COLLECTIVES
+//#define HPL_USE_COLLECTIVES
 
 /*
  * ---------------------------------------------------------------------
@@ -50,6 +50,7 @@
 
 #include "hpl_pmisc.hpp"
 #include "hpl_pauxil.hpp"
+#include "hpl_pmat.hpp"
 #include "hpl_panel.hpp"
 #include "hpl_pfact.hpp"
 #include "hpl_pgesv.hpp"

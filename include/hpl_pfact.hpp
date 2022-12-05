@@ -21,37 +21,12 @@
  * ---------------------------------------------------------------------
  */
 #include "hpl_misc.hpp"
-#include "hpl_blas.hpp"
 
 #include "hpl_pgesv.hpp"
 #include "hpl_pmisc.hpp"
 #include "hpl_pauxil.hpp"
 #include "hpl_panel.hpp"
 
-/*
- * ---------------------------------------------------------------------
- * #typedefs and data structures
- * ---------------------------------------------------------------------
- */
-typedef void (*HPL_T_PFA_FUN)(HPL_T_panel*,
-                              const int,
-                              const int,
-                              const int,
-                              double*,
-                              int,
-                              int,
-                              double*,
-                              int*);
-
-typedef void (*HPL_T_RFA_FUN)(HPL_T_panel*,
-                              const int,
-                              const int,
-                              const int,
-                              double*,
-                              int,
-                              int,
-                              double*,
-                              int*);
 /*
  * ---------------------------------------------------------------------
  * Function prototypes

@@ -21,7 +21,6 @@
  * ---------------------------------------------------------------------
  */
 
-#include "hpl_misc.hpp"
 #include <rocblas.h>
 #include <roctracer.h>
 #include <roctx.h>

@@ -14,7 +14,13 @@
  * ---------------------------------------------------------------------
  */
 
-#include "hpl.hpp"
+//#include "hpl.hpp"
+#include <mpi.h>
+
+#include "hpl_pgesv.hpp"
+
+#include "hpl_ptimer.hpp"
+#include "hpl_ptest.hpp"
 
 int main(int ARGC, char** ARGV) {
   /*

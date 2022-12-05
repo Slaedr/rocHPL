@@ -21,79 +21,14 @@
  * ---------------------------------------------------------------------
  */
 #include "hpl_misc.hpp"
-#include "hpl_blas.hpp"
-#include "hpl_auxil.hpp"
 
 #include "hpl_pmisc.hpp"
 #include "hpl_grid.hpp"
 #include "hpl_comm.hpp"
+#include "hpl_pmat.hpp"
 #include "hpl_pauxil.hpp"
 #include "hpl_panel.hpp"
 #include "hpl_pfact.hpp"
-
-/*
- * ---------------------------------------------------------------------
- * #typedefs and data structures
- * ---------------------------------------------------------------------
- */
-typedef enum {
-  HPL_LEFT_LOOKING  = 301, /* Left looking lu fact variant */
-  HPL_CROUT         = 302, /* Crout lu fact variant */
-  HPL_RIGHT_LOOKING = 303  /* Right looking lu fact variant */
-} HPL_T_FACT;
-
-typedef enum {
-  HPL_SWAP00 = 451, /* Use HPL_pdlaswp00 */
-  HPL_SWAP01 = 452, /* Use HPL_pdlaswp01 */
-  HPL_SW_MIX = 453, /* Use HPL_pdlaswp00_ for small number of */
-                    /* columns, and HPL_pdlaswp01_ otherwise. */
-  HPL_NO_SWP = 499
-} HPL_T_SWAP;
-
-typedef enum {
-  HPL_LOOK_AHEAD = 0, /* look-ahead update */
-  HPL_UPD_1      = 1, /* first update */
-  HPL_UPD_2      = 2, /* second update */
-
-  HPL_N_UPD = 3
-} HPL_T_UPD;
-
-typedef void (*HPL_T_UPD_FUN)(HPL_T_panel*, const HPL_T_UPD);
-
-typedef struct HPL_S_palg {
-  HPL_T_TOP     btopo; /* row broadcast topology */
-  int           depth; /* look-ahead depth */
-  int           nbdiv; /* recursive division factor */
-  int           nbmin; /* recursion stopping criterium */
-  HPL_T_FACT    pfact; /* panel fact variant */
-  HPL_T_FACT    rfact; /* recursive fact variant */
-  HPL_T_PFA_FUN pffun; /* panel fact function ptr */
-  HPL_T_RFA_FUN rffun; /* recursive fact function ptr */
-  HPL_T_UPD_FUN upfun; /* update function */
-  HPL_T_SWAP    fswap; /* Swapping algorithm */
-  int           fsthr; /* Swapping threshold */
-  int           equil; /* Equilibration */
-  int           align; /* data alignment constant */
-  double        frac;  /* update split percentage */
-} HPL_T_palg;
-
-typedef struct HPL_S_pmat {
-  double* dA;   /* pointer to local piece of A */
-  double* dX;   /* pointer to solution vector */
-  int     n;    /* global problem size */
-  int     nb;   /* blocking factor */
-  int     ld;   /* local leading dimension */
-  int     mp;   /* local number of rows */
-  int     nq;   /* local number of columns */
-  int     info; /* computational flag */
-  double* A;
-  double* W;
-  double* dW;
-} HPL_T_pmat;
-
-extern hipEvent_t swapStartEvent[HPL_N_UPD], update[HPL_N_UPD];
-extern hipEvent_t swapUCopyEvent[HPL_N_UPD], swapWCopyEvent[HPL_N_UPD];
-extern hipEvent_t dgemmStart[HPL_N_UPD], dgemmStop[HPL_N_UPD];
 
 /*
  * ---------------------------------------------------------------------

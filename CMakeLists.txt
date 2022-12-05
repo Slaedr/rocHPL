@@ -35,6 +35,8 @@ option(HPL_MPI_DIR  "Path to MPI library" ${CMAKE_CURRENT_SOURCE_DIR}/tpl/openmp
 
 option(HPL_OPENMPI_UCX "Compile WITH OpenMPI+UCX support." OFF)
 
+option(HPL_ENABLE_TESTING "Enable test suite." ON)
+
 set(CMAKE_INSTALL_PREFIX "rocHPL" CACHE PATH "Install path prefix, prepended onto install directories")
 
 # CMake modules
@@ -85,6 +87,8 @@ file(GLOB_RECURSE rochpl_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.cpp"
 # HPL device sources
 file(GLOB_RECURSE rochpl_device_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*_device.cpp")
 list(REMOVE_ITEM rochpl_source ${rochpl_device_source})
+set(rochpl_driver_file "src/HPL_pddriver.cpp")
+list(REMOVE_ITEM rochpl_source ${rochpl_driver_file})
 
 # Flag source files as hip source files
 foreach(i ${rochpl_device_source})
@@ -119,25 +123,39 @@ foreach(target ${TARGETS})
 endforeach()
 
 # Target executable
-hip_add_executable(rochpl ${rochpl_source} ${rochpl_device_source})
+hip_add_library(rochpl STATIC ${rochpl_source} ${rochpl_device_source})
+#hip_add_executable(rochpl ${rochpl_source} ${rochpl_device_source})
+add_executable(rochpl_driver ${rochpl_driver_file})
 
 target_compile_options(rochpl PRIVATE ${CMAKE_HOST_FLAGS})
+target_compile_options(rochpl_driver PRIVATE ${CMAKE_HOST_FLAGS})
 
 if(HPL_DEBUG)
   target_compile_definitions(rochpl PRIVATE HPL_DEBUG)
+  target_compile_definitions(rochpl_driver PRIVATE HPL_DEBUG)
 endif()
 
 if(HPL_VERBOSE_PRINT)
   target_compile_definitions(rochpl PRIVATE HPL_VERBOSE_PRINT)
+  target_compile_definitions(rochpl_driver PRIVATE HPL_VERBOSE_PRINT)
 endif()
 
 if(HPL_DETAILED_TIMING)
   target_compile_definitions(rochpl PRIVATE HPL_DETAILED_TIMING)
+  target_compile_definitions(rochpl_driver PRIVATE HPL_DETAILED_TIMING)
 endif()
 
 if(HPL_PROGRESS_REPORT)
   target_compile_definitions(rochpl PRIVATE HPL_PROGRESS_REPORT)
+  target_compile_definitions(rochpl_driver PRIVATE HPL_PROGRESS_REPORT)
 endif()
+
+set(hpl_include_dirs
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
+    $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
+    $<BUILD_INTERFACE:${HPL_MPI_DIR}/include>
+    $<BUILD_INTERFACE:${ROCM_PATH}/include/roctracer>)
 
 # Target include directories
 target_include_directories(rochpl
@@ -147,8 +165,9 @@ target_include_directories(rochpl
                            $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
                            $<BUILD_INTERFACE:${HPL_MPI_DIR}/include>
                            $<BUILD_INTERFACE:${ROCM_PATH}/include/roctracer>)
-
 #
+target_include_directories(rochpl_driver PRIVATE ${hpl_include_dirs})
+
 if(NOT DEFINED MPI_C_INCLUDE_DIRS)
   if(NOT DEFINED MPICH_DIR)
     set(MPICH_DIR $ENV{MPICH_DIR})
@@ -156,33 +175,39 @@ if(NOT DEFINED MPI_C_INCLUDE_DIRS)
   set(MPI_C_INCLUDE_DIRS "${MPICH_DIR}/include")
 endif()
 message(STATUS "MPI C include dirs: ${MPI_C_INCLUDE_DIRS}")
-target_include_directories(rochpl PRIVATE ${MPI_C_INCLUDE_DIRS})
+target_include_directories(rochpl PUBLIC ${MPI_C_INCLUDE_DIRS})
+target_include_directories(rochpl_driver PRIVATE ${MPI_C_INCLUDE_DIRS})
 
 target_include_directories(rochpl PRIVATE ${CNPY_INCLUDE_DIR})
 
 #HIP
-target_link_libraries(rochpl PRIVATE hip::host)
+target_link_libraries(rochpl PUBLIC hip::host)
 
 # MPI
-target_link_libraries(rochpl PRIVATE MPI::MPI_CXX)
+target_link_libraries(rochpl PUBLIC MPI::MPI_CXX)
 
 # OpenMP
-target_link_libraries(rochpl PRIVATE OpenMP::OpenMP_CXX)
+target_link_libraries(rochpl PUBLIC OpenMP::OpenMP_CXX)
 
 # Target link libraries
-target_link_libraries(rochpl PRIVATE BLAS::BLAS)
-target_link_libraries(rochpl PRIVATE roc::rocblas)
-target_link_libraries(rochpl PRIVATE roc::roctracer)
-target_link_libraries(rochpl PRIVATE roc::roctx)
-target_link_libraries(rochpl PRIVATE ${CNPY_LIB})
+target_link_libraries(rochpl PUBLIC BLAS::BLAS)
+target_link_libraries(rochpl PUBLIC roc::rocblas)
+target_link_libraries(rochpl PUBLIC roc::roctracer)
+target_link_libraries(rochpl PUBLIC roc::roctx)
+target_link_libraries(rochpl PUBLIC ${CNPY_LIB})
+
+target_link_libraries(rochpl_driver PRIVATE rochpl)
 
 # Target properties
-set_target_properties(rochpl PROPERTIES VERSION ${rochpl_VERSION})
-set_target_properties(rochpl PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+set_target_properties(rochpl_driver PROPERTIES VERSION ${rochpl_VERSION})
+set_target_properties(rochpl_driver PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+set_target_properties(rochpl PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
 set_target_properties(rochpl PROPERTIES LINKER_LANGUAGE CXX)
+set_target_properties(rochpl_driver PROPERTIES LINKER_LANGUAGE CXX)
 
-target_link_options(rochpl PRIVATE "-fopenmp")
+target_link_options(rochpl PUBLIC "-fopenmp")
+target_link_options(rochpl_driver PRIVATE "-fopenmp")
 
 set_target_properties(rochpl PROPERTIES HIP_ARCHITECTURES "${DEFAULT_AMDGPU_TARGETS}")
 
@@ -203,7 +228,7 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/HPL.dat
      DESTINATION ${CMAKE_BINARY_DIR})
 
 # Install targets
-rocm_install_targets(TARGETS rochpl)
+rocm_install_targets(TARGETS rochpl rochpl_driver)
 
 install(PROGRAMS ${CMAKE_BINARY_DIR}/run_rochpl ${CMAKE_BINARY_DIR}/mpirun_rochpl
         DESTINATION ${CMAKE_INSTALL_PREFIX})
@@ -228,3 +253,9 @@ rocm_create_package(
   NAME ${package_name}
   DESCRIPTION "Radeon Open Compute HPL application"
   MAINTAINER "Noel Chalmers")
+
+#if(HPL_ENABLE_TESTING)
+#    enable_testing()
+#    find_package(Python3 3.4 REQUIRED COMPONENTS Interpreter NumPy)
+#    add_subdirectory(test)
+#endif()
