@@ -107,8 +107,9 @@ int HPL_pdmatgen(HPL_T_test* TEST,
    * process row. In every process, A is lda * (nq+1), x is 1 * nq and the
    * workspace is mp.
    */
-  mat->ld = Mmax(1, mat->mp);
-  mat->ld = ((mat->ld + 95) / 128) * 128 + 32; /*pad*/
+  //mat->ld = Mmax(1, mat->mp);
+  //mat->ld = ((mat->ld + 95) / 128) * 128 + 32; /*pad*/
+  mat->ld = get_padded_dim(mat->mp);
 
   mat->nq = nq + 1;
 
@@ -279,8 +280,8 @@ void HPL_pdmatprepare(HPL_T_test *const test, const HPL_T_palg *const algo,
             HPL_pdreadmat(grid, N, N+1, test->matrix_dir, test->mdtype, initial_mat);
             HPL_ptimer(HPL_TIMING_IO);
             if(grid->iam == 0) {
-                printf("Requested refine factor is %d. Refining from bs=%d to bs=%d.\n", test->refine_blocks,
-                    orig_bs, orig_bs/test->refine_blocks);
+                printf("Requested refine factor is %d. Refining from bs=%d to bs=%d.\n",
+                        test->refine_blocks, orig_bs, orig_bs/test->refine_blocks);
             }
             HPL_ptimer(HPL_TIMING_MAT_VEC_REDISTRIBUTE);
             split_blocks(test, algo, grid, initial_mat, test->refine_blocks, mat);

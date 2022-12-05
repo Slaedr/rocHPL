@@ -60,6 +60,14 @@
  * Align pointer
  */
 #define HPL_PTR(ptr_, al_) ((((size_t)(ptr_) + (al_)-1) / (al_)) * (al_))
+
+inline int get_padded_dim(const int mp)
+{
+    int ld = Mmax(1, mp);
+    ld = ((ld + 95) / 128) * 128 + 32; /*pad*/
+    return ld;
+}
+
 #endif
 /*
  * End of hpl_misc.hpp

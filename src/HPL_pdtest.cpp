@@ -95,6 +95,10 @@ void HPL_pdtest(HPL_T_test* TEST,
   rocblas_initialize();
   rocblas_set_stream(handle, computeStream);
 
+  if(myrow == 0 && mycol == 0) {
+      printf("Will refine blocks by a factor of %d.\n", TEST->refine_blocks);
+      fflush(stdout);
+  }
   const int new_NB = NB / TEST->refine_blocks;
   if(new_NB != NB) {
       if(myrow == 0 && mycol == 0) {
