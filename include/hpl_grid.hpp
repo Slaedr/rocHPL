@@ -100,6 +100,8 @@ int HPL_grid_init(MPI_Comm,
 int HPL_grid_exit(HPL_T_grid*);
 int HPL_grid_info(const HPL_T_grid*, int*, int*, int*, int*);
 
+int get_mpi_rank(const HPL_T_grid *grid, int procrow, int proccol);
+
 #endif
 /*
  * End of hpl_grid.hpp

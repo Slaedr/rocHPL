@@ -158,14 +158,7 @@ set(hpl_include_dirs
     $<BUILD_INTERFACE:${ROCM_PATH}/include/roctracer>)
 
 # Target include directories
-target_include_directories(rochpl
-                           PRIVATE
-                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                           $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
-                           $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
-                           $<BUILD_INTERFACE:${HPL_MPI_DIR}/include>
-                           $<BUILD_INTERFACE:${ROCM_PATH}/include/roctracer>)
-#
+target_include_directories(rochpl PUBLIC ${hpl_include_dirs})
 target_include_directories(rochpl_driver PRIVATE ${hpl_include_dirs})
 
 if(NOT DEFINED MPI_C_INCLUDE_DIRS)
@@ -254,8 +247,8 @@ rocm_create_package(
   DESCRIPTION "Radeon Open Compute HPL application"
   MAINTAINER "Noel Chalmers")
 
-#if(HPL_ENABLE_TESTING)
-#    enable_testing()
-#    find_package(Python3 3.4 REQUIRED COMPONENTS Interpreter NumPy)
-#    add_subdirectory(test)
-#endif()
+if(HPL_ENABLE_TESTING)
+    enable_testing()
+    find_package(Python3 3.4 REQUIRED COMPONENTS Interpreter NumPy)
+    add_subdirectory(test)
+endif()

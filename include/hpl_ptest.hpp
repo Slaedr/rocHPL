@@ -27,8 +27,8 @@
 #include "hpl_pmisc.hpp"
 #include "hpl_pauxil.hpp"
 #include "hpl_panel.hpp"
-#include "hpl_pgesv.hpp"
-#include "hpl_pmat.hpp"
+//#include "hpl_pgesv.hpp"
+//#include "hpl_pmat.hpp"
 
 #include "hpl_ptimer.hpp"
 

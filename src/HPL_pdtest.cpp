@@ -117,13 +117,13 @@ void HPL_pdtest(HPL_T_test* TEST,
    * process row. In every process, A is lda * (nq+1), x is 1 * nq and the
    * workspace is mp.
    */
-  ierr = HPL_pdmatgen(TEST, GRID, ALGO, &mat, N, new_NB);
+  ierr = HPL_pdmatgen(TEST, GRID, &mat, N, new_NB);
   if(ierr != HPL_SUCCESS) {
       HPL_pdmatfree(&mat);
       throw std::bad_alloc();
   }
   if(new_NB != NB) {
-      ierr = HPL_pdmatgen(TEST, GRID, ALGO, &initial_mat, N, NB);
+      ierr = HPL_pdmatgen(TEST, GRID, &initial_mat, N, NB);
       if(ierr != HPL_SUCCESS) {
           HPL_pdmatfree(&initial_mat);
           throw std::bad_alloc();
@@ -344,7 +344,7 @@ void HPL_pdtest(HPL_T_test* TEST,
    * x, and norm inf of b - A x. Display residual checks.
    */
   if(new_NB != NB) {
-      ierr = HPL_pdmatgen(TEST, GRID, ALGO, &initial_mat, N, NB);
+      ierr = HPL_pdmatgen(TEST, GRID, &initial_mat, N, NB);
       if(ierr != HPL_SUCCESS) {
           HPL_pdmatfree(&initial_mat);
           throw std::bad_alloc();

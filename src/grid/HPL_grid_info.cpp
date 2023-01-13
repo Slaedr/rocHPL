@@ -15,6 +15,7 @@
  */
 
 #include "hpl.hpp"
+#include "hpl_exceptions.hpp"
 
 int HPL_grid_info(const HPL_T_grid* GRID,
                   int*              NPROW,
@@ -64,3 +65,28 @@ int HPL_grid_info(const HPL_T_grid* GRID,
   *MYCOL = GRID->mycol;
   return (MPI_SUCCESS);
 }
+
+/**
+ * Returns the MPI rank of a process given its coordinates in the 2D process grid.
+ */
+int get_mpi_rank(const HPL_T_grid *const grid, const int procrow, const int proccol)
+{
+    const int p = grid->local_nprow;
+    const int q = grid->local_npcol;
+    const int local_size = p * q;
+
+    const int noderow = procrow / p;
+    const int local_myrow = procrow % p;
+    const int nodecol = proccol / q;
+    const int local_mycol = proccol % q;
+
+    if(grid->order == HPL_COLUMN_MAJOR) {
+        const int inode = nodecol * (grid->nprow / p) + noderow;
+        const int local_rank = local_mycol * p + local_myrow;
+        return inode * local_size + local_rank;
+    } else {
+        ORNL_HPL_THROW_NOT_IMPLEMENTED("MPI rank from 2D proc coords for row-major grid");
+        return -1;
+    }
+}
+
