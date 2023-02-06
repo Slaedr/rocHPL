@@ -20,9 +20,7 @@ std::vector<double> gather_matrix(const HPL_T_grid *const grid, const HPL_T_pmat
     double *gmat;
     if(grid->iam == dest) {
         hipMalloc(&gmat, gl_size*sizeof(double));
-    }
 
-    if(grid->iam == dest) {
         for(int src_proc_col = 0; src_proc_col < grid->npcol; src_proc_col++) {
           const int ncols = HPL_numroc(mat->n, mat->nb, mat->nb, src_proc_col,
                                                srcproc, grid->npcol);
@@ -34,7 +32,6 @@ std::vector<double> gather_matrix(const HPL_T_grid *const grid, const HPL_T_pmat
             const int lsz = srcld * (ncols + 1);
             hipMalloc(&rbuf, lsz*sizeof(double));
             // mapping is column-major by default
-            //const int src_rank = src_proc_row + src_proc_col*grid->nprow;
             const int src_rank = get_mpi_rank(grid, src_proc_row, src_proc_col);
             if(src_rank != dest) {
                 MPI_Recv(rbuf, lsz, MPI_DOUBLE, src_rank, 0, grid->all_comm, MPI_STATUS_IGNORE);
@@ -47,18 +44,17 @@ std::vector<double> gather_matrix(const HPL_T_grid *const grid, const HPL_T_pmat
                 for(int loc_row = 0; loc_row < nrows; loc_row += mat->nb) {
                     const int gl_row = HPL_indxl2g(loc_row, mat->nb, mat->nb, src_proc_row,
                                                    srcproc, grid->nprow);
-                    //gmat[loc_row + loc_col*mat->n] = rbuf[loc_row + loc_col * srcld];
                     if(src_rank != dest) {
-                        hipMemcpy2D(gmat + gl_row + gl_col*mat->n, mat->n,
-                            rbuf + loc_row + loc_col*srcld, srcld, mat->nb*sizeof(double), mat->nb,
-                            hipMemcpyDeviceToDevice);
+                        hipMemcpy2D(gmat + gl_row + gl_col*mat->n, mat->n * sizeof(double),
+                            rbuf + loc_row + loc_col*srcld, srcld * sizeof(double), mat->nb*sizeof(double),
+                            mat->nb, hipMemcpyDeviceToDevice);
                     } else {
                         if(srcld != mat->ld) {
                             HPL_pabort(__LINE__, "gather_matrix", "Computer ld is not the same as mat->ld!");
                         }
-                        hipMemcpy2D(gmat + gl_row + gl_col*mat->n, mat->n,
-                            mat->dA + loc_row + loc_col*srcld, srcld, mat->nb*sizeof(double), mat->nb,
-                            hipMemcpyDeviceToDevice);
+                        hipMemcpy2D(gmat + gl_row + gl_col*mat->n, mat->n * sizeof(double),
+                            mat->dA + loc_row + loc_col*srcld, srcld * sizeof(double),
+                            mat->nb*sizeof(double), mat->nb, hipMemcpyDeviceToDevice);
                     }
                 }
             }

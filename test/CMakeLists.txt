@@ -6,3 +6,5 @@ add_subdirectory(gather)
 add_library(test_utils test_utils.cpp)
 
 # Build HPL tests
+add_executable(grid_tests test_grid.cpp)
+target_link_libraries(grid_tests PRIVATE test_utils rochpl hip::host)

@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
     }
  
     HPL_pdreadmat(&grid, td.global_size, td.global_size + 1, test.matrix_dir, test.mdtype, &mat);
-    
+
     const auto gl_mat_vals = test::gather_matrix(&grid, &mat);
 
     if(rank == 0) {
