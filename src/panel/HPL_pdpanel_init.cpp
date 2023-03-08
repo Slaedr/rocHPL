@@ -301,8 +301,7 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
   }
 
   /*Finally, we need 4 + 4*JB entries of scratch for pdfact */
-  //const size_t lfwork = (size_t)(((4 + ((unsigned int)(JB) << 1)) << 1));
-  //psz.l_f_work = (size_t)(((4 + ((unsigned int)(JB) << 1)) << 1));
+  //const size_t lfwork = (size_t)(((4 + ((unsigned int)(JB) << 1)) << 2));
   if(PANEL->max_fwork_size < psz.l_f_work * sizeof(double)) {
     if(PANEL->fWORK) {
         free(PANEL->fWORK);
