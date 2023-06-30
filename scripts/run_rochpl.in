@@ -281,9 +281,12 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" ]]; then
   # if [[ $globalRank == 0 ]]; then
   #   echo "BardPeak platform detected"
   # fi
+  
+  num_use_cores=7
+  num_domains=8
 
   # Sanity check
-  if [[ $size -gt 8 ]]; then
+  if [[ $size -gt $num_domains ]]; then
     echo "Unsupported number of ranks on BardPeak platform; aborting";
     exit 1
   fi
@@ -297,31 +300,33 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" ]]; then
   # GCD6 cores="32-39"
   # GCD7 cores="40-47"
 
-  root_cores=(48 56 16 24 0 8 32 40)
+  #root_cores=(48 56 16 24 0 8 32 40)
+  # 1 + the actual root core, for low-noise mode
+  root_cores=(49 57 17 25 1 9 33 41)
   root_core=${root_cores[mygpu]}
 
   # First omp place is the root core
   omp_places="{$root_core}"
 
   # First assign the CCD
-  for i in $(seq $((root_core+1)) $((root_core+8-1)))
+  for i in $(seq $((root_core+1)) $((root_core+num_use_cores-1)))
   do
     omp_places+=",{$i}"
   done
-  omp_num_threads=8
+  omp_num_threads=$num_use_cores
 
-  places="{$root_core-$((root_core+7))}"
+  places="{$root_core-$((root_core+num_use_cores-1))}"
 
   # Loop through unassigned CCDs
   for c in $(seq $((mygpu+size)) $size 7)
   do
     iroot_core=${root_cores[c]}
-    for i in $(seq $((iroot_core)) $((iroot_core+8-1)))
+    for i in $(seq $((iroot_core)) $((iroot_core+num_use_cores-1)))
     do
       omp_places+=",{$i}"
     done
-    omp_num_threads=$((omp_num_threads+8))
-    places+=",{$iroot_core-$((iroot_core+7))}"
+    omp_num_threads=$((omp_num_threads+num_use_cores))
+    places+=",{$iroot_core-$((iroot_core+num_use_cores-1))}"
   done
 
   if [[ "${oversubscribe}" == true ]]; then
@@ -336,12 +341,12 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" ]]; then
         q_gpu=$((jj+j+myp*q))
         q_core=$((root_cores[q_gpu]))
         offset=$(( (q_gpu>=size) ? 0 : 1))
-        for i in $(seq $((q_core+offset)) $((q_core+8-1)))
+        for i in $(seq $((q_core+offset)) $((q_core+num_use_cores-1)))
         do
           omp_places+=",{$i}"
         done
-        omp_num_threads=$((omp_num_threads+8-offset))
-        places+=",{$((q_core+offset))-$((q_core+7))}"
+        omp_num_threads=$((omp_num_threads+num_use_cores-offset))
+        places+=",{$((q_core+offset))-$((q_core+num_use_cores-1))}"
       done
     done
   fi
@@ -397,6 +402,7 @@ export OMP_PROC_BIND=true
 
 if [[ $globalRank -lt $size ]]; then
   echo "Node Binding: Process $rank [(p,q)=($myp,$myq)] CPU Cores: $omp_num_threads - $places"
+  echo "  OpenMP places: $OMP_PLACES"
 fi
 
 rochpl_args="-P ${P} -Q ${Q} -p ${p} -q ${q} -f ${frac}"
