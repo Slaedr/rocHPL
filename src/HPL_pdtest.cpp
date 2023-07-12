@@ -15,6 +15,11 @@
  */
 
 #include <limits>
+
+#ifdef CRAYPAT
+#include "pat_api.h"
+#endif
+
 #include "hpl.hpp"
 
 void HPL_pdtest(HPL_T_test* TEST,
@@ -120,7 +125,13 @@ void HPL_pdtest(HPL_T_test* TEST,
   (void)HPL_barrier(GRID->all_comm);
   time(&current_time_start);
   HPL_ptimer(0);
+#ifdef CRAYPAT
+  PAT_record(PAT_STATE_ON);
+#endif
   HPL_pdgesv(GRID, ALGO, &mat);
+#ifdef CRAYPAT
+  PAT_record(PAT_STATE_OFF);
+#endif
   HPL_ptimer(0);
   time(&current_time_end);
 

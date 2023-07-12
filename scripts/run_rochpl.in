@@ -82,10 +82,10 @@ supported_distro
 # global variables
 # #################################################
 # Grab options from CMake config
-rochpl_bin=@CMAKE_INSTALL_PREFIX@/bin/rochpl
 rocm_dir=@ROCM_PATH@
 rocblas_dir=@ROCBLAS_LIB_PATH@
 blas_dir=@HPL_BLAS_DIR@
+rochpl_bin=@ROCHPL_BIN@
 
 P=1
 Q=1

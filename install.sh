@@ -13,6 +13,7 @@ function display_help()
   echo "./install "
   echo "    [-h|--help] prints this help message"
   echo "    [-g|--debug] Set build type to Debug (otherwise build Release)"
+  echo "    [-b|--build-type] Set build type to Debug (otherwise build Release)"
   echo "    [--prefix] Path to rocHPL install location (Default: build/rocHPL)"
   echo "    [--with-rocm=<dir>] Path to ROCm install (Default: /opt/rocm)"
   echo "    [--with-rocblas=<dir>] Path to rocBLAS library (Default: /opt/rocm/rocblas)"
@@ -253,6 +254,7 @@ with_cpublas=tpl/blis/lib
 verbose_print=true
 progress_report=true
 detailed_timing=true
+build_type=release
 
 # #################################################
 # Parameter parsing
@@ -261,7 +263,7 @@ detailed_timing=true
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions help,debug,prefix:,with-rocm:,with-mpi:,with-rocblas:,with-cpublas:,verbose-print:,progress-report:,detailed-timing: --options hg -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions help,debug,build-type:,prefix:,with-rocm:,with-mpi:,with-rocblas:,with-cpublas:,verbose-print:,progress-report:,detailed-timing: --options hgb: -- "$@")
 else
   echo "Need a new version of getopt"
   exit_with_error 1
@@ -283,6 +285,9 @@ while true; do
     -g|--debug)
         build_release=false
         shift ;;
+    -b|--build-type)
+        build_type=${2}
+        shift 2 ;;
     --prefix)
         install_prefix=${2}
         shift 2 ;;
@@ -358,11 +363,31 @@ pushd .
                         -DHPL_MPI_DIR=${with_mpi} -DROCM_PATH=${with_rocm} -DROCBLAS_PATH=${with_rocblas}"
 
   # build type
-  if [[ "${build_release}" == true ]]; then
+  #if [[ "${build_release}" == true ]]; then
+  #  cmake_common_options="${cmake_common_options} -DCMAKE_BUILD_TYPE=Release"
+  #else
+  #  cmake_common_options="${cmake_common_options} -DCMAKE_BUILD_TYPE=Debug"
+  #fi
+  
+  if [[ "${build_type}" == "release" ]]; then
+    mkdir -p ${build_dir}/release && cd ${build_dir}/release
     cmake_common_options="${cmake_common_options} -DCMAKE_BUILD_TYPE=Release"
-  else
+  elif [[ "${build_type}" == "debug" || "${build_release}" == false ]]; then
+    mkdir -p ${build_dir}/debug && cd ${build_dir}/debug
     cmake_common_options="${cmake_common_options} -DCMAKE_BUILD_TYPE=Debug"
+  elif [[ "${build_type}" == "craypat" ]]; then
+    mkdir -p ${build_dir}/craypat && cd ${build_dir}/craypat
+    cmake_common_options+=" -DHPL_BUILD_FOR_CRAYPAT=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo "
+    cmake_common_options+="-DHIP_HIPCC_FLAGS=\"$(pat_opts include hipcc) $(pat_opts pre_compile hipcc) $(pat_opts post_compile hipcc)\""
+    cmake_common_options+=" -DCMAKE_CXX_FLAGS=\"$(pat_opts include hipcc) -DCRAYPAT -ggdb\" "
+    prelink=$(pat_opts pre_link hipcc)
+    prelink_s=${prelink::-1}
+    cmake_common_options+="-DCMAKE_EXE_LINKER_FLAGS=\"${prelink_s}\""
+  elif [[ "${build_type}" == "relwithdebinfo" ]]; then
+    mkdir -p ${build_dir}/relwithdebinfo && cd ${build_dir}/relwithdebinfo
+    cmake_common_options="${cmake_common_options} -DCMAKE_BUILD_TYPE=RelWithDebInfo"
   fi
+
 
   shopt -s nocasematch
   if [[ "${verbose_print}" == on || "${verbose_print}" == true || "${verbose_print}" == 1 || "${verbose_print}" == enabled ]]; then
@@ -377,8 +402,10 @@ pushd .
   shopt -u nocasematch
 
   # Build library with AMD toolchain because of existence of device kernels
-  mkdir -p ${build_dir} && cd ${build_dir}
-  ${cmake_executable} ${cmake_common_options} ..
+  #mkdir -p ${build_dir} && cd ${build_dir} # already cd'd above
+  echo CMake command line:
+  echo ${cmake_executable} ${cmake_common_options} ../..
+  ${cmake_executable} ${cmake_common_options} ../..
   check_exit_code 2
 
   if [[ -e build.ninja ]]; then

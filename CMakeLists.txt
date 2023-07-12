@@ -172,6 +172,24 @@ target_link_options(rochpl PRIVATE "-fopenmp")
 
 set_target_properties(rochpl PROPERTIES HIP_ARCHITECTURES "${DEFAULT_AMDGPU_TARGETS}")
 
+if(HPL_BUILD_FOR_CRAYPAT)
+    #set(HPL_BUILD_TYPE "craypat")
+    set(ROCHPL_BIN "${CMAKE_INSTALL_PREFIX}/bin/rochpl-${PROJECT_VERSION}+pat")
+    message(STATUS "Will build Craypat executable at ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}+pat")
+    add_custom_command(COMMENT "Building Craypat instrumented executable"
+        OUTPUT "${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}+pat"
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+        COMMAND rm -f rochpl-${PROJECT_VERSION}+pat
+        COMMAND pat_build -g hip,mpi,omp -T _Z10HPL_pdfactP1 -w rochpl-${PROJECT_VERSION}
+        #MAIN_DEPENDENCY ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}
+        DEPENDS rochpl
+        )
+    add_custom_target(rochpl_craypat_exec ALL
+        DEPENDS "${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}+pat")
+else()
+    set(ROCHPL_BIN "${CMAKE_INSTALL_PREFIX}/bin/rochpl-${PROJECT_VERSION}")
+endif()
+
 # Configure a header file to pass the rocHPL version
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/hpl_version.hpp.in"
                "${PROJECT_BINARY_DIR}/include/hpl_version.hpp")
@@ -193,6 +211,10 @@ rocm_install_targets(TARGETS rochpl)
 
 install(PROGRAMS ${CMAKE_BINARY_DIR}/run_rochpl ${CMAKE_BINARY_DIR}/mpirun_rochpl
         DESTINATION ${CMAKE_INSTALL_PREFIX})
+if(HPL_BUILD_FOR_CRAYPAT)
+    install(PROGRAMS ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}+pat
+            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+endif()
 install(FILES ${CMAKE_BINARY_DIR}/HPL.dat
         DESTINATION ${CMAKE_INSTALL_PREFIX})
 
