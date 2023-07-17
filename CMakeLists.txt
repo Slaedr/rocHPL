@@ -151,6 +151,7 @@ target_link_libraries(rochpl PRIVATE hip::host)
 
 # MPI
 target_link_libraries(rochpl PRIVATE MPI::MPI_CXX)
+target_link_libraries(rochpl PRIVATE ${GTL_LIB})
 
 # OpenMP
 target_link_libraries(rochpl PRIVATE OpenMP::OpenMP_CXX)
