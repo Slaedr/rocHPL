@@ -103,10 +103,11 @@ check_exit_code( )
 
 
 # Install BLIS in rochpl/tpl
+# Argument is the build type
 install_blis( )
 {
-  if [ ! -d "./tpl/blis" ]; then
-    mkdir -p tpl && cd tpl
+  if [ ! -d "./tpl/${1}/blis" ]; then
+    mkdir -p tpl/$1 && cd tpl/$1
     git clone https://github.com/amd/blis --branch 4.0
     check_exit_code 2
     cd blis; ./configure --prefix=${PWD} --enable-cblas --disable-sup-handling auto;
@@ -115,9 +116,9 @@ install_blis( )
     check_exit_code 2
     make install -j$(nproc)
     check_exit_code 2
-    cd ../..
-  elif [ ! -f "./tpl/blis/lib/libblis.so" ]; then
-    cd tpl/blis; ./configure --prefix=${PWD} --enable-cblas --disable-sup-handling auto;
+    cd ../../..
+  elif [ ! -f "./tpl/${1}/blis/lib/libblis.so" ]; then
+    cd tpl/${1}/blis; ./configure --prefix=${PWD} --enable-cblas --disable-sup-handling auto;
     check_exit_code 2
     make -j$(nproc)
     check_exit_code 2
@@ -127,7 +128,7 @@ install_blis( )
   fi
 
   # Check for successful build
-  if [ ! -f "./tpl/blis/lib/libblis.so" ]; then
+  if [ ! -f "./tpl/${1}/blis/lib/libblis.so" ]; then
     echo "Error: BLIS install unsuccessful."
     exit_with_error 2
   fi
@@ -325,8 +326,6 @@ printf "\033[32mCreating project build directory in: \033[33m${build_dir}\033[0m
 # #################################################
 # prep
 # #################################################
-# ensure a clean build environment
-rm -rf ${build_dir}
 
 # Default cmake executable is called cmake
 cmake_executable=cmake
@@ -342,7 +341,8 @@ pushd .
   # #################################################
   if [[ "${with_cpublas}" == tpl/blis/lib ]]; then
 
-    install_blis
+    install_blis $build_type
+    with_cpublas="tpl/${build_type}/blis/lib"
 
   fi
 
@@ -370,12 +370,15 @@ pushd .
   #fi
   
   if [[ "${build_type}" == "release" ]]; then
+    rm -rf ${build_dir}/release
     mkdir -p ${build_dir}/release && cd ${build_dir}/release
     cmake_common_options="${cmake_common_options} -DCMAKE_BUILD_TYPE=Release"
   elif [[ "${build_type}" == "debug" || "${build_release}" == false ]]; then
+    rm -rf ${build_dir}/debug
     mkdir -p ${build_dir}/debug && cd ${build_dir}/debug
     cmake_common_options="${cmake_common_options} -DCMAKE_BUILD_TYPE=Debug"
   elif [[ "${build_type}" == "craypat" ]]; then
+    rm -rf ${build_dir}/craypat
     mkdir -p ${build_dir}/craypat && cd ${build_dir}/craypat
     cmake_common_options+=" -DHPL_BUILD_FOR_CRAYPAT=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo "
     cmake_common_options+="-DHIP_HIPCC_FLAGS=\"$(pat_opts include hipcc) $(pat_opts pre_compile hipcc) $(pat_opts post_compile hipcc)\""
@@ -384,6 +387,7 @@ pushd .
     prelink_s=${prelink::-1}
     cmake_common_options+="-DCMAKE_EXE_LINKER_FLAGS=\"${prelink_s}\""
   elif [[ "${build_type}" == "relwithdebinfo" ]]; then
+    rm -rf ${build_dir}/relwithdebinfo
     mkdir -p ${build_dir}/relwithdebinfo && cd ${build_dir}/relwithdebinfo
     cmake_common_options="${cmake_common_options} -DCMAKE_BUILD_TYPE=RelWithDebInfo"
   fi
