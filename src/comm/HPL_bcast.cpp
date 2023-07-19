@@ -58,7 +58,7 @@ int HPL_bcast(double*   SBUF,
 
   roctxRangePush("HPL_Bcast");
 
-#ifdef HPL_USE_COLLECTIVES
+#ifdef HPL_BCAST_USE_COLLECTIVES
 
   ierr = MPI_Bcast(SBUF, SCOUNT, MPI_DOUBLE, ROOT, COMM);
 

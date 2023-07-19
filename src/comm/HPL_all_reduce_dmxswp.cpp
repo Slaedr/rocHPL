@@ -83,7 +83,7 @@ void HPL_all_reduce_dmxswp(double*   BUFFER,
 
   roctxRangePush("HPL_all_reduce_dmxswp");
 
-#ifdef HPL_USE_COLLECTIVES
+#ifdef HPL_OTHER_USE_COLLECTIVES
 
   const int myrow = static_cast<int>(BUFFER[3]);
   const int jb    = (COUNT - 4) / 2;

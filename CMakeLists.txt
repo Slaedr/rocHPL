@@ -28,6 +28,8 @@ cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 option(HPL_VERBOSE_PRINT   "Enable printing to terminal during run" OFF)
 option(HPL_PROGRESS_REPORT "Enable printing progess report to terminal during run" OFF)
 option(HPL_DETAILED_TIMING "Enable detailed timers during run" OFF)
+option(HPL_OTHER_USE_COLLECTIVES "Enable native MPI collectives for allgatherv, scatterv and all-reduce-dmxswp" OFF)
+option(HPL_BCAST_USE_COLLECTIVES "Enable native MPI collective for LBCAST" OFF)
 
 option(ROCM_PATH "Path to ROCm install" /opt/rocm)
 option(HPL_BLAS_DIR "Path to CPU BLAS library" ${CMAKE_CURRENT_SOURCE_DIR}/tpl/openblas)
@@ -135,6 +137,13 @@ endif()
 
 if(HPL_PROGRESS_REPORT)
   target_compile_definitions(rochpl PRIVATE HPL_PROGRESS_REPORT)
+endif()
+
+if(HPL_OTHER_USE_COLLECTIVES)
+  target_compile_definitions(rochpl PRIVATE HPL_OTHER_USE_COLLECTIVES)
+endif()
+if(HPL_BCAST_USE_COLLECTIVES)
+  target_compile_definitions(rochpl PRIVATE HPL_BCAST_USE_COLLECTIVES)
 endif()
 
 # Target include directories

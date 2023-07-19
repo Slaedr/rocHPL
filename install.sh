@@ -256,6 +256,8 @@ verbose_print=true
 progress_report=true
 detailed_timing=true
 build_type=release
+collective_bcast=false
+collective_other=false
 
 # #################################################
 # Parameter parsing
@@ -264,7 +266,7 @@ build_type=release
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions help,debug,build-type:,prefix:,with-rocm:,with-mpi:,with-rocblas:,with-cpublas:,verbose-print:,progress-report:,detailed-timing: --options hgb: -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions help,debug,build-type:,prefix:,with-rocm:,with-mpi:,with-rocblas:,with-cpublas:,verbose-print:,progress-report:,detailed-timing:,with-bcast-collective,with-other-collectives --options hgb: -- "$@")
 else
   echo "Need a new version of getopt"
   exit_with_error 1
@@ -313,6 +315,12 @@ while true; do
     --detailed-timing)
         detailed_timing=${2}
         shift 2 ;;
+    --with-bcast-collective)
+        collective_bcast=true
+        shift ;;
+    --with-other-collectives)
+        collective_other=true
+        shift ;;
     --) shift ; break ;;
     *)  echo "Unexpected command line parameter received; aborting";
         exit_with_error 1
@@ -390,6 +398,14 @@ pushd .
     rm -rf ${build_dir}/relwithdebinfo
     mkdir -p ${build_dir}/relwithdebinfo && cd ${build_dir}/relwithdebinfo
     cmake_common_options="${cmake_common_options} -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+  fi
+
+  if [[ "${collective_other}" == true ]]; then
+    echo "Other operations (not BCAST) will use collectives."
+    cmake_common_options="${cmake_common_options} -DHPL_OTHER_USE_COLLECTIVES=ON"
+  fi
+  if [[ "${collective_bcast}" == true ]]; then
+    cmake_common_options="${cmake_common_options} -DHPL_BCAST_USE_COLLECTIVES=ON"
   fi
 
 

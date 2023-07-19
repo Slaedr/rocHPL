@@ -60,7 +60,7 @@ int HPL_allgatherv(double*    BUF,
 
   roctxRangePush("HPL_Allgatherv");
 
-#ifdef HPL_USE_COLLECTIVES
+#ifdef HPL_OTHER_USE_COLLECTIVES
 
   int ierr = MPI_Allgatherv(
       MPI_IN_PLACE, SCOUNT, MPI_DOUBLE, BUF, RCOUNT, DISPL, MPI_DOUBLE, COMM);

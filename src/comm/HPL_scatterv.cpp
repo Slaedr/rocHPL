@@ -70,7 +70,7 @@ int HPL_scatterv(double*    BUF,
 
   roctxRangePush("HPL_Scatterv");
 
-#ifdef HPL_USE_COLLECTIVES
+#ifdef HPL_OTHER_USE_COLLECTIVES
 
   if(rank == ROOT) {
     ierr = MPI_Scatterv(BUF,
