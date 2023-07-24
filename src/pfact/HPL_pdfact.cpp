@@ -17,7 +17,7 @@
 #include "hpl.hpp"
 #include <assert.h>
 
-void HPL_pdfact(HPL_T_panel* PANEL) {
+void HPL_pdfact(HPL_T_panel* PANEL, const HPL_Comm_impl_type allreduce_type) {
   /*
    * Purpose
    * =======
@@ -94,7 +94,7 @@ void HPL_pdfact(HPL_T_panel* PANEL) {
                        thread_rank,
                        thread_size,
                        max_value,
-                       max_index);
+                       max_index, allreduce_type);
   }
 
   roctxRangePop();

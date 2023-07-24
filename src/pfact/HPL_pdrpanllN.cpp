@@ -24,7 +24,8 @@ void HPL_pdrpanllN(HPL_T_panel* PANEL,
                    int          thread_rank,
                    int          thread_size,
                    double*      max_value,
-                   int*         max_index) {
+                   int*         max_index,
+                   const HPL_Comm_impl_type comm_type) {
   /*
    * Purpose
    * =======
@@ -88,7 +89,7 @@ void HPL_pdrpanllN(HPL_T_panel* PANEL,
                        thread_rank,
                        thread_size,
                        max_value,
-                       max_index);
+                       max_index, comm_type);
     return;
   }
   /*
@@ -174,7 +175,7 @@ void HPL_pdrpanllN(HPL_T_panel* PANEL,
                   thread_rank,
                   thread_size,
                   max_value,
-                  max_index);
+                  max_index, comm_type);
     /*
      * Copy back upper part of A in current process row - Go the next block
      */

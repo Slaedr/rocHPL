@@ -24,7 +24,8 @@ void HPL_pdpanllT(HPL_T_panel* PANEL,
                   int          thread_rank,
                   int          thread_size,
                   double*      max_value,
-                  int*         max_index) {
+                  int*         max_index,
+                  const HPL_Comm_impl_type comm_type) {
   /*
    * Purpose
    * =======
@@ -122,7 +123,7 @@ void HPL_pdpanllT(HPL_T_panel* PANEL,
      * Swap and broadcast the current row
      */
     if(thread_rank == 0) {
-      HPL_pdmxswp(PANEL, m, ii, jj, WORK);
+      HPL_pdmxswp(PANEL, m, ii, jj, WORK, comm_type);
       HPL_dlocswpT(PANEL, ii, jj, WORK);
     }
 
@@ -201,7 +202,7 @@ void HPL_pdpanllT(HPL_T_panel* PANEL,
    * max entry
    */
   if(thread_rank == 0) {
-    HPL_pdmxswp(PANEL, m, ii, jj, WORK);
+    HPL_pdmxswp(PANEL, m, ii, jj, WORK, comm_type);
     HPL_dlocswpT(PANEL, ii, jj, WORK);
   }
 

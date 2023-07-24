@@ -37,6 +37,11 @@ typedef enum {
   HPL_BLONG_M = 406, /* long broadcast (modified) */
 } HPL_T_TOP;
 
+typedef enum {
+    HPL_COMM_COLLECTIVE,
+    HPL_COMM_CUSTOM_IMPL
+} HPL_Comm_impl_type;
+
 typedef MPI_Op HPL_T_OP;
 
 #define HPL_SUM MPI_SUM
@@ -86,7 +91,7 @@ int HPL_all_reduce(void*,
                    MPI_Comm);
 
 void HPL_dmxswp(void*, void*, int*, MPI_Datatype*);
-void HPL_all_reduce_dmxswp(double*, const int, const int, MPI_Comm, double*);
+void HPL_all_reduce_dmxswp(double*, const int, const int, MPI_Comm, double*, HPL_Comm_impl_type);
 
 #endif
 /*

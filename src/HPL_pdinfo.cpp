@@ -42,6 +42,8 @@ void HPL_pdinfo(int          ARGC,
                 HPL_T_FACT*  RF,
                 int*         NTPS,
                 HPL_T_TOP*   TP,
+                int*         n_allreduce_dmxswp,
+                HPL_Comm_impl_type* allreduce_dmxswp_type,
                 int*         NDHS,
                 int*         DH,
                 HPL_T_SWAP*  FSWAP,
@@ -509,6 +511,9 @@ void HPL_pdinfo(int          ARGC,
      */
     *NTPS = 1;
     TP[0] = HPL_1RING;
+    // Allreduce implemetation for DMXWSP
+    *n_allreduce_dmxswp = 1;
+    allreduce_dmxswp_type[0] = HPL_COMM_CUSTOM_IMPL;
     /*
      * Lookahead depth (>=0) (NDH)
      */
@@ -877,6 +882,34 @@ void HPL_pdinfo(int          ARGC,
         else // if(j == 5)
           TP[i] = HPL_BLONG_M;
       }
+      // Allreduce implementation for dmxswp
+      status = fgets(line, HPL_LINE_MAX - 2, infp);
+      (void)sscanf(line, "%s", num);
+      *n_allreduce_dmxswp = atoi(num);
+      if((*n_allreduce_dmxswp < 1) || (*n_allreduce_dmxswp > HPL_MAX_PARAM)) {
+        HPL_pwarn(stderr,
+                  __LINE__,
+                  "HPL_pdinfo",
+                  "%s %s %d",
+                  "Number of values of allreduce_dmxswp",
+                  "is less than 1 or greater than",
+                  HPL_MAX_PARAM);
+        error = 1;
+        goto label_error;
+      }
+      status  = fgets(line, HPL_LINE_MAX - 2, infp);
+      lineptr = line;
+      for(i = 0; i < *n_allreduce_dmxswp; i++) {
+        (void)sscanf(lineptr, "%s", num);
+        lineptr += strlen(num) + 1;
+        j = atoi(num);
+        if(j == 0) {
+          allreduce_dmxswp_type[i] = HPL_COMM_CUSTOM_IMPL;
+        }
+        else {
+          allreduce_dmxswp_type[i] = HPL_COMM_COLLECTIVE;
+        }
+      }
       /*
        * Lookahead depth (>=0) (NDH)
        */
@@ -1022,7 +1055,7 @@ void HPL_pdinfo(int          ARGC,
     /*
      * Broadcast array sizes
      */
-    iwork = (int*)malloc((size_t)(15) * sizeof(int));
+    iwork = (int*)malloc((size_t)(18) * sizeof(int));
     if(rank == 0) {
       iwork[0]  = *NS;
       iwork[1]  = *NBS;
@@ -1039,6 +1072,7 @@ void HPL_pdinfo(int          ARGC,
       iwork[12] = *UNOTRAN;
       iwork[13] = *EQUIL;
       iwork[14] = *ALIGN;
+      iwork[15] = *n_allreduce_dmxswp;
     }
     (void)HPL_broadcast((void*)iwork, 15, HPL_INT, 0, MPI_COMM_WORLD);
     if(rank != 0) {
@@ -1057,6 +1091,7 @@ void HPL_pdinfo(int          ARGC,
       *UNOTRAN  = iwork[12];
       *EQUIL    = iwork[13];
       *ALIGN    = iwork[14];
+      *n_allreduce_dmxswp = iwork[15];
     }
     if(iwork) free(iwork);
     /*

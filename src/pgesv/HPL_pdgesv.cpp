@@ -116,7 +116,7 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
   HPL_pdpanel_SendToHost(panel[0]);
   HPL_pdpanel_Wait(panel[0]);
 
-  HPL_pdfact(panel[0]);
+  HPL_pdfact(panel[0], ALGO->comm_impls_types.allreduce_dmxswp_type);
 
   // send the panel back to device before bcast
   HPL_pdpanel_SendToDevice(panel[0]);
@@ -229,7 +229,7 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
 
       /*Panel factorization FLOP count is (2/3)NB^3 - (1/2)NB^2 - (1/6)NB +
        * (N-i*NB)(NB^2-NB)*/
-      HPL_pdfact(panel[1]); /* factor current panel */
+      HPL_pdfact(panel[1], ALGO->comm_impls_types.allreduce_dmxswp_type); /* factor current panel */
 
       // send the panel back to device before bcast
       HPL_pdpanel_SendToDevice(panel[1]);

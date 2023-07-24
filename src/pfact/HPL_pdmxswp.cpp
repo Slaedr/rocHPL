@@ -20,7 +20,8 @@ void HPL_pdmxswp(HPL_T_panel* PANEL,
                  const int    M,
                  const int    II,
                  const int    JJ,
-                 double*      WORK) {
+                 double*      WORK,
+                 const HPL_Comm_impl_type comm_type) {
   /*
    * Purpose
    * =======
@@ -120,7 +121,7 @@ void HPL_pdmxswp(HPL_T_panel* PANEL,
   }
 
   /* Perform swap-broadcast */
-  HPL_all_reduce_dmxswp(WORK, cnt0, icurrow, comm, Wwork);
+  HPL_all_reduce_dmxswp(WORK, cnt0, icurrow, comm, Wwork, comm_type);
 
   /*
    * Save the global pivot index in pivot array

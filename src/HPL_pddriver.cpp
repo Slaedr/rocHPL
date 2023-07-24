@@ -34,13 +34,14 @@ int main(int ARGC, char** ARGV) {
   HPL_T_FACT pfaval[HPL_MAX_PARAM], rfaval[HPL_MAX_PARAM];
 
   HPL_T_TOP topval[HPL_MAX_PARAM];
+  HPL_Comm_impl_type allreduce_dmxswp_types[HPL_MAX_PARAM];
 
   HPL_T_grid grid;
   HPL_T_palg algo;
   HPL_T_test test;
   int L1notran, Unotran, align, equil, in, inb, inbm, indh, indv, ipfa, ipq,
       irfa, itop, mycol, myrow, ns, nbs, nbms, ndhs, ndvs, npcol, npfs, npqs,
-      nprow, nrfs, ntps, rank, size, tswap;
+      nprow, nrfs, ntps, rank, size, tswap, n_allreduce_dmxswp;
   HPL_T_ORDER pmapping;
   HPL_T_FACT  rpfa;
   HPL_T_SWAP  fswap;
@@ -111,6 +112,8 @@ int main(int ARGC, char** ARGV) {
              rfaval,
              &ntps,
              topval,
+             &n_allreduce_dmxswp,
+             allreduce_dmxswp_types,
              &ndhs,
              ndhval,
              &fswap,
@@ -142,69 +145,72 @@ int main(int ARGC, char** ARGV) {
             indh++) { /* Loop over various lookahead depths */
           for(itop = 0; itop < ntps;
               itop++) { /* Loop over various broadcast topologies */
-            for(irfa = 0; irfa < nrfs;
-                irfa++) { /* Loop over various recursive factorizations */
-              for(ipfa = 0; ipfa < npfs;
-                  ipfa++) { /* Loop over various panel factorizations */
-                for(inbm = 0; inbm < nbms;
-                    inbm++) { /* Loop over various recursive stopping criteria
-                               */
-                  for(indv = 0; indv < ndvs;
-                      indv++) { /* Loop over various # of panels in recursion */
-                                /*
-                                 * Set up the algorithm parameters
+            for(int iardmxswp = 0; iardmxswp < n_allreduce_dmxswp; iardmxswp++) {
+              for(irfa = 0; irfa < nrfs;
+                  irfa++) { /* Loop over various recursive factorizations */
+                for(ipfa = 0; ipfa < npfs;
+                    ipfa++) { /* Loop over various panel factorizations */
+                  for(inbm = 0; inbm < nbms;
+                      inbm++) { /* Loop over various recursive stopping criteria
                                  */
-                    algo.btopo = topval[itop];
-                    algo.depth = ndhval[indh];
-                    algo.nbmin = nbmval[inbm];
-                    algo.nbdiv = ndvval[indv];
+                    for(indv = 0; indv < ndvs;
+                        indv++) { /* Loop over various # of panels in recursion */
+                                  /*
+                                   * Set up the algorithm parameters
+                                   */
+                      algo.btopo = topval[itop];
+                      algo.depth = ndhval[indh];
+                      algo.nbmin = nbmval[inbm];
+                      algo.nbdiv = ndvval[indv];
+                      algo.comm_impls_types.allreduce_dmxswp_type = allreduce_dmxswp_types[iardmxswp];
 
-                    algo.pfact = rpfa = pfaval[ipfa];
+                      algo.pfact = rpfa = pfaval[ipfa];
 
-                    if(L1notran != 0) {
-                      if(rpfa == HPL_LEFT_LOOKING)
-                        algo.pffun = HPL_pdpanllN;
-                      else if(rpfa == HPL_CROUT)
-                        algo.pffun = HPL_pdpancrN;
-                      else
-                        algo.pffun = HPL_pdpanrlN;
+                      if(L1notran != 0) {
+                        if(rpfa == HPL_LEFT_LOOKING)
+                          algo.pffun = HPL_pdpanllN;
+                        else if(rpfa == HPL_CROUT)
+                          algo.pffun = HPL_pdpancrN;
+                        else
+                          algo.pffun = HPL_pdpanrlN;
 
-                      algo.rfact = rpfa = rfaval[irfa];
-                      if(rpfa == HPL_LEFT_LOOKING)
-                        algo.rffun = HPL_pdrpanllN;
-                      else if(rpfa == HPL_CROUT)
-                        algo.rffun = HPL_pdrpancrN;
-                      else
-                        algo.rffun = HPL_pdrpanrlN;
+                        algo.rfact = rpfa = rfaval[irfa];
+                        if(rpfa == HPL_LEFT_LOOKING)
+                          algo.rffun = HPL_pdrpanllN;
+                        else if(rpfa == HPL_CROUT)
+                          algo.rffun = HPL_pdrpancrN;
+                        else
+                          algo.rffun = HPL_pdrpanrlN;
 
-                      algo.upfun = HPL_pdupdateNT;
-                    } else {
-                      if(rpfa == HPL_LEFT_LOOKING)
-                        algo.pffun = HPL_pdpanllT;
-                      else if(rpfa == HPL_CROUT)
-                        algo.pffun = HPL_pdpancrT;
-                      else
-                        algo.pffun = HPL_pdpanrlT;
+                        algo.upfun = HPL_pdupdateNT;
+                      } else {
+                        if(rpfa == HPL_LEFT_LOOKING)
+                          algo.pffun = HPL_pdpanllT;
+                        else if(rpfa == HPL_CROUT)
+                          algo.pffun = HPL_pdpancrT;
+                        else
+                          algo.pffun = HPL_pdpanrlT;
 
-                      algo.rfact = rpfa = rfaval[irfa];
-                      if(rpfa == HPL_LEFT_LOOKING)
-                        algo.rffun = HPL_pdrpanllT;
-                      else if(rpfa == HPL_CROUT)
-                        algo.rffun = HPL_pdrpancrT;
-                      else
-                        algo.rffun = HPL_pdrpanrlT;
+                        algo.rfact = rpfa = rfaval[irfa];
+                        if(rpfa == HPL_LEFT_LOOKING)
+                          algo.rffun = HPL_pdrpanllT;
+                        else if(rpfa == HPL_CROUT)
+                          algo.rffun = HPL_pdrpancrT;
+                        else
+                          algo.rffun = HPL_pdrpanrlT;
 
-                      algo.upfun = HPL_pdupdateTT;
+                        algo.upfun = HPL_pdupdateTT;
+                      }
+
+                      algo.fswap = fswap;
+                      algo.fsthr = tswap;
+                      algo.equil = equil;
+                      algo.align = align;
+
+                      algo.frac = frac;
+
+                      HPL_pdtest(&test, &grid, &algo, nval[in], nbval[inb]);
                     }
-
-                    algo.fswap = fswap;
-                    algo.fsthr = tswap;
-                    algo.equil = equil;
-                    algo.align = align;
-
-                    algo.frac = frac;
-
-                    HPL_pdtest(&test, &grid, &algo, nval[in], nbval[inb]);
                   }
                 }
               }

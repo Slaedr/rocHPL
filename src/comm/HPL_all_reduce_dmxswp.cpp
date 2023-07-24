@@ -47,7 +47,8 @@ void HPL_all_reduce_dmxswp(double*   BUFFER,
                            const int COUNT,
                            const int ROOT,
                            MPI_Comm  COMM,
-                           double*   WORK) {
+                           double*   WORK,
+                           const HPL_Comm_impl_type comm_type) {
   /*
    * Purpose
    * =======
@@ -83,216 +84,216 @@ void HPL_all_reduce_dmxswp(double*   BUFFER,
 
   roctxRangePush("HPL_all_reduce_dmxswp");
 
-#ifdef HPL_OTHER_USE_COLLECTIVES
+  if(comm_type == HPL_COMM_COLLECTIVE) {
 
-  const int myrow = static_cast<int>(BUFFER[3]);
-  const int jb    = (COUNT - 4) / 2;
+    const int myrow = static_cast<int>(BUFFER[3]);
+    const int jb    = (COUNT - 4) / 2;
 
-  /* Use a normal all_reduce */
-  (void)MPI_Allreduce(MPI_IN_PLACE, BUFFER, 1, PDFACT_ROW, HPL_DMXSWP, COMM);
+    /* Use a normal all_reduce */
+    (void)MPI_Allreduce(MPI_IN_PLACE, BUFFER, 1, PDFACT_ROW, HPL_DMXSWP, COMM);
 
-  /*Location of max row*/
-  const int maxrow = static_cast<int>(BUFFER[3]);
+    /*Location of max row*/
+    const int maxrow = static_cast<int>(BUFFER[3]);
 
-  if(myrow == ROOT) { /*Root send top row to maxrow*/
-    if(maxrow != ROOT) {
+    if(myrow == ROOT) { /*Root send top row to maxrow*/
+      if(maxrow != ROOT) {
+        double* Wwork = BUFFER + 4 + jb;
+        HPL_send(Wwork, jb, maxrow, MSGID_BEGIN_PFACT, COMM);
+      }
+    } else if(myrow == maxrow) { /*Recv top row from ROOT*/
       double* Wwork = BUFFER + 4 + jb;
-      HPL_send(Wwork, jb, maxrow, MSGID_BEGIN_PFACT, COMM);
+      HPL_recv(Wwork, jb, ROOT, MSGID_BEGIN_PFACT, COMM);
     }
-  } else if(myrow == maxrow) { /*Recv top row from ROOT*/
-    double* Wwork = BUFFER + 4 + jb;
-    HPL_recv(Wwork, jb, ROOT, MSGID_BEGIN_PFACT, COMM);
-  }
 
-#else
+  } else {                     // comm_type
 
-  double       gmax, tmp1;
-  double *     A0, *Wmx;
-  unsigned int hdim, ip2, ip2_, ipow, k, mask;
-  int Np2, cnt_, cnt0, i, icurrow, mydist, mydis_, myrow, n0, nprow, partner,
-      rcnt, root, scnt, size_;
+    double       gmax, tmp1;
+    double *     A0, *Wmx;
+    unsigned int hdim, ip2, ip2_, ipow, k, mask;
+    int Np2, cnt_, cnt0, i, icurrow, mydist, mydis_, myrow, n0, nprow, partner,
+        rcnt, root, scnt, size_;
 
-  MPI_Comm_rank(COMM, &myrow);
-  MPI_Comm_size(COMM, &nprow);
+    MPI_Comm_rank(COMM, &myrow);
+    MPI_Comm_size(COMM, &nprow);
 
-  /*
-   * ip2   : largest power of two <= nprow;
-   * hdim  : ip2 procs hypercube dim;
-   */
-  hdim = 0;
-  ip2  = 1;
-  k    = nprow;
-  while(k > 1) {
-    k >>= 1;
-    ip2 <<= 1;
-    hdim++;
-  }
+    /*
+     * ip2   : largest power of two <= nprow;
+     * hdim  : ip2 procs hypercube dim;
+     */
+    hdim = 0;
+    ip2  = 1;
+    k    = nprow;
+    while(k > 1) {
+      k >>= 1;
+      ip2 <<= 1;
+      hdim++;
+    }
 
-  n0      = (COUNT - 4) / 2;
-  icurrow = ROOT;
-  Np2     = (int)((size_ = nprow - ip2) != 0);
-  mydist  = MModSub(myrow, icurrow, nprow);
+    n0      = (COUNT - 4) / 2;
+    icurrow = ROOT;
+    Np2     = (int)((size_ = nprow - ip2) != 0);
+    mydist  = MModSub(myrow, icurrow, nprow);
 
-  /*
-   * Set up pointers in workspace:  WORK and Wwork  point to the beginning
-   * of the buffers of size 4 + 2*N0 to be combined. Wmx points to the row
-   * owning the local (before combine) and global (after combine) absolute
-   * value max. A0 points to the copy of the current row of the matrix.
-   */
+    /*
+     * Set up pointers in workspace:  WORK and Wwork  point to the beginning
+     * of the buffers of size 4 + 2*N0 to be combined. Wmx points to the row
+     * owning the local (before combine) and global (after combine) absolute
+     * value max. A0 points to the copy of the current row of the matrix.
+     */
 
-  cnt0 = (cnt_ = n0 + 4) + n0;
-  A0   = (Wmx = BUFFER + 4) + n0;
+    cnt0 = (cnt_ = n0 + 4) + n0;
+    A0   = (Wmx = BUFFER + 4) + n0;
 
-  /*
-   * Combine the results (bi-directional exchange):  the process coordina-
-   * tes are relative to icurrow,  this allows to reduce the communication
-   * volume when nprow is not a power of 2.
-   *
-   * When nprow is not a power of 2:  proc[i-ip2] receives local data from
-   * proc[i]  for all i in [ip2..nprow).  In addition,  proc[0]  (icurrow)
-   * sends to proc[ip2] the current row of A  for later broadcast in procs
-   * [ip2..nprow).
-   */
-  if((Np2 != 0) && ((partner = (int)((unsigned int)(mydist) ^ ip2)) < nprow)) {
-    if((mydist & ip2) != 0) {
-      if(mydist == (int)(ip2))
+    /*
+     * Combine the results (bi-directional exchange):  the process coordina-
+     * tes are relative to icurrow,  this allows to reduce the communication
+     * volume when nprow is not a power of 2.
+     *
+     * When nprow is not a power of 2:  proc[i-ip2] receives local data from
+     * proc[i]  for all i in [ip2..nprow).  In addition,  proc[0]  (icurrow)
+     * sends to proc[ip2] the current row of A  for later broadcast in procs
+     * [ip2..nprow).
+     */
+    if((Np2 != 0) && ((partner = (int)((unsigned int)(mydist) ^ ip2)) < nprow)) {
+      if((mydist & ip2) != 0) {
+        if(mydist == (int)(ip2))
+          (void)HPL_sdrv(BUFFER,
+                         cnt_,
+                         MSGID_BEGIN_PFACT,
+                         A0,
+                         n0,
+                         MSGID_BEGIN_PFACT,
+                         MModAdd(partner, icurrow, nprow),
+                         COMM);
+        else
+          (void)HPL_send(BUFFER,
+                         cnt_,
+                         MModAdd(partner, icurrow, nprow),
+                         MSGID_BEGIN_PFACT,
+                         COMM);
+      } else {
+        if(mydist == 0)
+          (void)HPL_sdrv(A0,
+                         n0,
+                         MSGID_BEGIN_PFACT,
+                         WORK,
+                         cnt_,
+                         MSGID_BEGIN_PFACT,
+                         MModAdd(partner, icurrow, nprow),
+                         COMM);
+        else
+          (void)HPL_recv(WORK,
+                         cnt_,
+                         MModAdd(partner, icurrow, nprow),
+                         MSGID_BEGIN_PFACT,
+                         COMM);
+
+        tmp1 = Mabs(WORK[0]);
+        gmax = Mabs(BUFFER[0]);
+        if((tmp1 > gmax) || ((tmp1 == gmax) && (WORK[3] < BUFFER[3]))) {
+          HPL_dcopy(cnt_, WORK, 1, BUFFER, 1);
+        }
+      }
+    }
+
+    if(mydist < (int)(ip2)) {
+      /*
+       * power of 2 part of the processes collection: processes  [0..ip2)  are
+       * combining (binary exchange); proc[0] has two rows to send, but one to
+       * receive.  At every step  k  in [0..hdim) of the algorithm,  a process
+       * pair exchanging 2 rows is such that  myrow >> k+1 is 0.  Among  those
+       * processes the ones  that are sending one more row than  what they are
+       * receiving are such that myrow >> k is equal to 0.
+       */
+      k    = 0;
+      ipow = 1;
+
+      while(k < hdim) {
+        if(((unsigned int)(mydist) >> (k + 1)) == 0) {
+          if(((unsigned int)(mydist) >> k) == 0) {
+            scnt = cnt0;
+            rcnt = cnt_;
+          } else {
+            scnt = cnt_;
+            rcnt = cnt0;
+          }
+        } else {
+          scnt = rcnt = cnt_;
+        }
+
+        partner = (int)((unsigned int)(mydist) ^ ipow);
         (void)HPL_sdrv(BUFFER,
-                       cnt_,
+                       scnt,
                        MSGID_BEGIN_PFACT,
-                       A0,
-                       n0,
+                       WORK,
+                       rcnt,
                        MSGID_BEGIN_PFACT,
                        MModAdd(partner, icurrow, nprow),
                        COMM);
-      else
+
+        tmp1 = Mabs(WORK[0]);
+        gmax = Mabs(BUFFER[0]);
+        if((tmp1 > gmax) || ((tmp1 == gmax) && (WORK[3] < BUFFER[3]))) {
+          HPL_dcopy((rcnt == cnt0 ? cnt0 : cnt_), WORK, 1, BUFFER, 1);
+        } else if(rcnt == cnt0) {
+          HPL_dcopy(n0, WORK + cnt_, 1, A0, 1);
+        }
+
+        ipow <<= 1;
+        k++;
+      }
+    } else if(size_ > 1) {
+      /*
+       * proc[ip2] broadcast current row of A to procs [ip2+1..nprow).
+       */
+      k    = (unsigned int)(size_)-1;
+      ip2_ = mask = 1;
+      while(k > 1) {
+        k >>= 1;
+        ip2_ <<= 1;
+        mask <<= 1;
+        mask++;
+      }
+
+      root   = MModAdd(icurrow, (int)(ip2), nprow);
+      mydis_ = MModSub(myrow, root, nprow);
+
+      do {
+        mask ^= ip2_;
+        if((mydis_ & mask) == 0) {
+          partner = (int)(mydis_ ^ ip2_);
+          if((mydis_ & ip2_) != 0) {
+            (void)HPL_recv(
+                A0, n0, MModAdd(root, partner, nprow), MSGID_BEGIN_PFACT, COMM);
+          } else if(partner < size_) {
+            (void)HPL_send(
+                A0, n0, MModAdd(root, partner, nprow), MSGID_BEGIN_PFACT, COMM);
+          }
+        }
+        ip2_ >>= 1;
+      } while(ip2_ > 0);
+    }
+    /*
+     * If nprow is not a power of 2,  for all i in [ip2..nprow), proc[i-ip2]
+     * sends the pivot row to proc[i]  along  with the first four entries of
+     * the BUFFER array.
+     */
+    if((Np2 != 0) && ((partner = (int)((unsigned int)(mydist) ^ ip2)) < nprow)) {
+      if((mydist & ip2) != 0) {
+        (void)HPL_recv(BUFFER,
+                       cnt_,
+                       MModAdd(partner, icurrow, nprow),
+                       MSGID_BEGIN_PFACT,
+                       COMM);
+      } else {
         (void)HPL_send(BUFFER,
                        cnt_,
                        MModAdd(partner, icurrow, nprow),
                        MSGID_BEGIN_PFACT,
                        COMM);
-    } else {
-      if(mydist == 0)
-        (void)HPL_sdrv(A0,
-                       n0,
-                       MSGID_BEGIN_PFACT,
-                       WORK,
-                       cnt_,
-                       MSGID_BEGIN_PFACT,
-                       MModAdd(partner, icurrow, nprow),
-                       COMM);
-      else
-        (void)HPL_recv(WORK,
-                       cnt_,
-                       MModAdd(partner, icurrow, nprow),
-                       MSGID_BEGIN_PFACT,
-                       COMM);
-
-      tmp1 = Mabs(WORK[0]);
-      gmax = Mabs(BUFFER[0]);
-      if((tmp1 > gmax) || ((tmp1 == gmax) && (WORK[3] < BUFFER[3]))) {
-        HPL_dcopy(cnt_, WORK, 1, BUFFER, 1);
       }
     }
-  }
 
-  if(mydist < (int)(ip2)) {
-    /*
-     * power of 2 part of the processes collection: processes  [0..ip2)  are
-     * combining (binary exchange); proc[0] has two rows to send, but one to
-     * receive.  At every step  k  in [0..hdim) of the algorithm,  a process
-     * pair exchanging 2 rows is such that  myrow >> k+1 is 0.  Among  those
-     * processes the ones  that are sending one more row than  what they are
-     * receiving are such that myrow >> k is equal to 0.
-     */
-    k    = 0;
-    ipow = 1;
-
-    while(k < hdim) {
-      if(((unsigned int)(mydist) >> (k + 1)) == 0) {
-        if(((unsigned int)(mydist) >> k) == 0) {
-          scnt = cnt0;
-          rcnt = cnt_;
-        } else {
-          scnt = cnt_;
-          rcnt = cnt0;
-        }
-      } else {
-        scnt = rcnt = cnt_;
-      }
-
-      partner = (int)((unsigned int)(mydist) ^ ipow);
-      (void)HPL_sdrv(BUFFER,
-                     scnt,
-                     MSGID_BEGIN_PFACT,
-                     WORK,
-                     rcnt,
-                     MSGID_BEGIN_PFACT,
-                     MModAdd(partner, icurrow, nprow),
-                     COMM);
-
-      tmp1 = Mabs(WORK[0]);
-      gmax = Mabs(BUFFER[0]);
-      if((tmp1 > gmax) || ((tmp1 == gmax) && (WORK[3] < BUFFER[3]))) {
-        HPL_dcopy((rcnt == cnt0 ? cnt0 : cnt_), WORK, 1, BUFFER, 1);
-      } else if(rcnt == cnt0) {
-        HPL_dcopy(n0, WORK + cnt_, 1, A0, 1);
-      }
-
-      ipow <<= 1;
-      k++;
-    }
-  } else if(size_ > 1) {
-    /*
-     * proc[ip2] broadcast current row of A to procs [ip2+1..nprow).
-     */
-    k    = (unsigned int)(size_)-1;
-    ip2_ = mask = 1;
-    while(k > 1) {
-      k >>= 1;
-      ip2_ <<= 1;
-      mask <<= 1;
-      mask++;
-    }
-
-    root   = MModAdd(icurrow, (int)(ip2), nprow);
-    mydis_ = MModSub(myrow, root, nprow);
-
-    do {
-      mask ^= ip2_;
-      if((mydis_ & mask) == 0) {
-        partner = (int)(mydis_ ^ ip2_);
-        if((mydis_ & ip2_) != 0) {
-          (void)HPL_recv(
-              A0, n0, MModAdd(root, partner, nprow), MSGID_BEGIN_PFACT, COMM);
-        } else if(partner < size_) {
-          (void)HPL_send(
-              A0, n0, MModAdd(root, partner, nprow), MSGID_BEGIN_PFACT, COMM);
-        }
-      }
-      ip2_ >>= 1;
-    } while(ip2_ > 0);
-  }
-  /*
-   * If nprow is not a power of 2,  for all i in [ip2..nprow), proc[i-ip2]
-   * sends the pivot row to proc[i]  along  with the first four entries of
-   * the BUFFER array.
-   */
-  if((Np2 != 0) && ((partner = (int)((unsigned int)(mydist) ^ ip2)) < nprow)) {
-    if((mydist & ip2) != 0) {
-      (void)HPL_recv(BUFFER,
-                     cnt_,
-                     MModAdd(partner, icurrow, nprow),
-                     MSGID_BEGIN_PFACT,
-                     COMM);
-    } else {
-      (void)HPL_send(BUFFER,
-                     cnt_,
-                     MModAdd(partner, icurrow, nprow),
-                     MSGID_BEGIN_PFACT,
-                     COMM);
-    }
-  }
-
-#endif
+  }                          // comm_type
   roctxRangePop();
 }

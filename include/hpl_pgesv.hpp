@@ -60,8 +60,16 @@ typedef enum {
 
 typedef void (*HPL_T_UPD_FUN)(HPL_T_panel*, const HPL_T_UPD);
 
+struct HPL_Comm_impls {
+  HPL_Comm_impl_type bcast_type;
+  HPL_Comm_impl_type allreduce_dmxswp_type;
+  HPL_Comm_impl_type allgatherv_type;
+  HPL_Comm_impl_type scatterv_type;
+};
+
 typedef struct HPL_S_palg {
   HPL_T_TOP     btopo; /* row broadcast topology */
+  HPL_Comm_impls comm_impls_types;
   int           depth; /* look-ahead depth */
   int           nbdiv; /* recursive division factor */
   int           nbmin; /* recursion stopping criterium */
