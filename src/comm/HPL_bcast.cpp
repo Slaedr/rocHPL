@@ -20,7 +20,7 @@ int HPL_bcast(double*   SBUF,
               int       SCOUNT,
               int       ROOT,
               MPI_Comm  COMM,
-              HPL_T_TOP top) {
+              const HPL_T_TOP top, const HPL_Comm_impl_type impl_type) {
   /*
    * Purpose
    * =======
@@ -58,23 +58,20 @@ int HPL_bcast(double*   SBUF,
 
   roctxRangePush("HPL_Bcast");
 
-#ifdef HPL_BCAST_USE_COLLECTIVES
-
-  ierr = MPI_Bcast(SBUF, SCOUNT, MPI_DOUBLE, ROOT, COMM);
-
-#else
-
-  switch(top) {
-    case HPL_1RING_M: ierr = HPL_bcast_1rinM(SBUF, SCOUNT, ROOT, COMM); break;
-    case HPL_1RING: ierr = HPL_bcast_1ring(SBUF, SCOUNT, ROOT, COMM); break;
-    case HPL_2RING_M: ierr = HPL_bcast_2rinM(SBUF, SCOUNT, ROOT, COMM); break;
-    case HPL_2RING: ierr = HPL_bcast_2ring(SBUF, SCOUNT, ROOT, COMM); break;
-    case HPL_BLONG_M: ierr = HPL_bcast_blonM(SBUF, SCOUNT, ROOT, COMM); break;
-    case HPL_BLONG: ierr = HPL_bcast_blong(SBUF, SCOUNT, ROOT, COMM); break;
-    default: ierr = HPL_FAILURE;
+  if(impl_type == HPL_COMM_COLLECTIVE) {
+      ierr = MPI_Bcast(SBUF, SCOUNT, MPI_DOUBLE, ROOT, COMM);
   }
-
-#endif
+  else {
+    switch(top) {
+      case HPL_1RING_M: ierr = HPL_bcast_1rinM(SBUF, SCOUNT, ROOT, COMM); break;
+      case HPL_1RING: ierr = HPL_bcast_1ring(SBUF, SCOUNT, ROOT, COMM); break;
+      case HPL_2RING_M: ierr = HPL_bcast_2rinM(SBUF, SCOUNT, ROOT, COMM); break;
+      case HPL_2RING: ierr = HPL_bcast_2ring(SBUF, SCOUNT, ROOT, COMM); break;
+      case HPL_BLONG_M: ierr = HPL_bcast_blonM(SBUF, SCOUNT, ROOT, COMM); break;
+      case HPL_BLONG: ierr = HPL_bcast_blong(SBUF, SCOUNT, ROOT, COMM); break;
+      default: ierr = HPL_FAILURE;
+    }
+  }
 
   roctxRangePop();
 

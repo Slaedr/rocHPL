@@ -21,7 +21,7 @@ int HPL_scatterv(double*    BUF,
                  const int* DISPL,
                  const int  RCOUNT,
                  int        ROOT,
-                 MPI_Comm   COMM) {
+                 MPI_Comm   COMM, const HPL_Comm_impl_type impl_type) {
   /*
    * Purpose
    * =======
@@ -70,55 +70,53 @@ int HPL_scatterv(double*    BUF,
 
   roctxRangePush("HPL_Scatterv");
 
-#ifdef HPL_OTHER_USE_COLLECTIVES
-
-  if(rank == ROOT) {
-    ierr = MPI_Scatterv(BUF,
-                        SCOUNT,
-                        DISPL,
-                        MPI_DOUBLE,
-                        MPI_IN_PLACE,
-                        RCOUNT,
-                        MPI_DOUBLE,
-                        ROOT,
-                        COMM);
-  } else {
-    ierr = MPI_Scatterv(
-        NULL, SCOUNT, DISPL, MPI_DOUBLE, BUF, RCOUNT, MPI_DOUBLE, ROOT, COMM);
-  }
-
-#else
-
-  int size;
-  MPI_Comm_size(COMM, &size);
-
-  const int tag = ROOT;
-  if(rank == ROOT) {
-    MPI_Request requests[size];
-
-    /*Just send size-1 messages*/
-    for(int i = 0; i < size; ++i) {
-
-      requests[i] = MPI_REQUEST_NULL;
-
-      if(i == ROOT) { continue; }
-      const int ibuf = DISPL[i];
-      const int lbuf = SCOUNT[i];
-
-      if(lbuf > 0) {
-        (void)MPI_Isend(
-            BUF + ibuf, lbuf, MPI_DOUBLE, i, tag, COMM, requests + i);
+  if(impl_type == HPL_COMM_COLLECTIVE) {
+      if(rank == ROOT) {
+        ierr = MPI_Scatterv(BUF,
+                            SCOUNT,
+                            DISPL,
+                            MPI_DOUBLE,
+                            MPI_IN_PLACE,
+                            RCOUNT,
+                            MPI_DOUBLE,
+                            ROOT,
+                            COMM);
+      } else {
+        ierr = MPI_Scatterv(
+            NULL, SCOUNT, DISPL, MPI_DOUBLE, BUF, RCOUNT, MPI_DOUBLE, ROOT, COMM);
       }
-    }
+  }
+  else {
+      int size;
+      MPI_Comm_size(COMM, &size);
 
-    MPI_Waitall(size, requests, MPI_STATUSES_IGNORE);
-  } else {
-    if(RCOUNT > 0)
-      ierr =
-          MPI_Recv(BUF, RCOUNT, MPI_DOUBLE, ROOT, tag, COMM, MPI_STATUS_IGNORE);
+      const int tag = ROOT;
+      if(rank == ROOT) {
+        MPI_Request requests[size];
+
+        /*Just send size-1 messages*/
+        for(int i = 0; i < size; ++i) {
+
+          requests[i] = MPI_REQUEST_NULL;
+
+          if(i == ROOT) { continue; }
+          const int ibuf = DISPL[i];
+          const int lbuf = SCOUNT[i];
+
+          if(lbuf > 0) {
+            (void)MPI_Isend(
+                BUF + ibuf, lbuf, MPI_DOUBLE, i, tag, COMM, requests + i);
+          }
+        }
+
+        MPI_Waitall(size, requests, MPI_STATUSES_IGNORE);
+      } else {
+        if(RCOUNT > 0)
+          ierr =
+              MPI_Recv(BUF, RCOUNT, MPI_DOUBLE, ROOT, tag, COMM, MPI_STATUS_IGNORE);
+      }
   }
 
-#endif
   roctxRangePop();
 
   return ((ierr == MPI_SUCCESS ? HPL_SUCCESS : HPL_FAILURE));

@@ -348,10 +348,12 @@ void HPL_pdlaswp_exchange(HPL_T_panel* PANEL, const HPL_T_UPD UPD) {
 #endif
 
     // send rows to other ranks
-    HPL_scatterv(dU, ipcounts, ipoffsets, ipcounts[myrow], icurrow, comm);
+    HPL_scatterv(dU, ipcounts, ipoffsets, ipcounts[myrow], icurrow, comm,
+            PANEL->algo->comm_impls_types.scatterv_type);
 
     // All gather dU
-    HPL_allgatherv(dU, ipcounts[myrow], ipcounts, ipoffsets, comm);
+    HPL_allgatherv(dU, ipcounts[myrow], ipcounts, ipoffsets, comm,
+            PANEL->algo->comm_impls_types.allgatherv_type);
 
 #ifdef HPL_DETAILED_TIMING
     HPL_ptimer(HPL_TIMING_LASWP);
@@ -373,10 +375,12 @@ void HPL_pdlaswp_exchange(HPL_T_panel* PANEL, const HPL_T_UPD UPD) {
 #endif
 
     // receive rows from icurrow into dW
-    HPL_scatterv(dW, ipcounts, ipoffsets, ipcounts[myrow], icurrow, comm);
+    HPL_scatterv(dW, ipcounts, ipoffsets, ipcounts[myrow], icurrow, comm,
+            PANEL->algo->comm_impls_types.scatterv_type);
 
     // All gather dU
-    HPL_allgatherv(dU, ipcounts[myrow], ipcounts, ipoffsets, comm);
+    HPL_allgatherv(dU, ipcounts[myrow], ipcounts, ipoffsets, comm,
+            PANEL->algo->comm_impls_types.allgatherv_type);
 
 #ifdef HPL_DETAILED_TIMING
     HPL_ptimer(HPL_TIMING_LASWP);
