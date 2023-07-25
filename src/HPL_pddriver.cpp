@@ -27,26 +27,10 @@ int main(int ARGC, char** ARGV) {
    * ---------------------------------------------------------------------
    */
 
-  int nval[HPL_MAX_PARAM], nbval[HPL_MAX_PARAM], pval[HPL_MAX_PARAM],
-      qval[HPL_MAX_PARAM], nbmval[HPL_MAX_PARAM], ndvval[HPL_MAX_PARAM],
-      ndhval[HPL_MAX_PARAM];
-
-  HPL_T_FACT pfaval[HPL_MAX_PARAM], rfaval[HPL_MAX_PARAM];
-
-  HPL_T_TOP topval[HPL_MAX_PARAM];
-  HPL_Comm_impl_type allreduce_dmxswp_types[HPL_MAX_PARAM];
-
   HPL_T_grid grid;
   HPL_T_palg algo;
   HPL_T_test test;
-  int L1notran, Unotran, align, equil, in, inb, inbm, indh, indv, ipfa, ipq,
-      irfa, itop, mycol, myrow, ns, nbs, nbms, ndhs, ndvs, npcol, npfs, npqs,
-      nprow, nrfs, ntps, rank, size, tswap, n_allreduce_dmxswp;
-  HPL_T_ORDER pmapping;
-  HPL_T_FACT  rpfa;
-  HPL_T_SWAP  fswap;
-  double      frac;
-  int         p, q;
+  int mycol, myrow, npcol, nprow, rank, size;
 
   MPI_Init(&ARGC, &ARGV);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -89,128 +73,92 @@ int main(int ARGC, char** ARGV) {
    * 1            Equilibration (0=no,1=yes)
    * 8            memory alignment in double (> 0)
    */
-  HPL_pdinfo(ARGC,
-             ARGV,
-             &test,
-             &ns,
-             nval,
-             &nbs,
-             nbval,
-             &pmapping,
-             &npqs,
-             pval,
-             qval,
-             &p,
-             &q,
-             &npfs,
-             pfaval,
-             &nbms,
-             nbmval,
-             &ndvs,
-             ndvval,
-             &nrfs,
-             rfaval,
-             &ntps,
-             topval,
-             &n_allreduce_dmxswp,
-             allreduce_dmxswp_types,
-             &ndhs,
-             ndhval,
-             &fswap,
-             &tswap,
-             &L1notran,
-             &Unotran,
-             &equil,
-             &align,
-             &frac);
+  const HPL_Test_params params = HPL_pdinfo(ARGC, ARGV, &test);
 
   /*
    * Loop over different process grids - Define process grid. Go to bottom
    * of process grid loop if this case does not use my process.
    */
-  for(ipq = 0; ipq < npqs; ipq++) {
+  for(size_t ipq = 0; ipq < params.gl_proc_rows.size(); ipq++) {
     (void)HPL_grid_init(
-        MPI_COMM_WORLD, pmapping, pval[ipq], qval[ipq], p, q, &grid);
+        MPI_COMM_WORLD, params.process_ordering, params.gl_proc_rows[ipq], params.gl_proc_cols[ipq],
+        params.loc_proc_rows, params.loc_proc_cols, &grid);
     (void)HPL_grid_info(&grid, &nprow, &npcol, &myrow, &mycol);
 
-    if((myrow < 0) || (myrow >= nprow) || (mycol < 0) || (mycol >= npcol))
-      goto label_end_of_npqs;
+    if((myrow < 0) || (myrow >= nprow) || (mycol < 0) || (mycol >= npcol)) {
+        continue;
+    }
 
     // Initialize GPU
     HPL_InitGPU(&grid);
 
-    for(in = 0; in < ns; in++) {       /* Loop over various problem sizes */
-      for(inb = 0; inb < nbs; inb++) { /* Loop over various blocking factors */
-        for(indh = 0; indh < ndhs;
-            indh++) { /* Loop over various lookahead depths */
-          for(itop = 0; itop < ntps;
-              itop++) { /* Loop over various broadcast topologies */
-            for(int iardmxswp = 0; iardmxswp < n_allreduce_dmxswp; iardmxswp++) {
-              for(irfa = 0; irfa < nrfs;
-                  irfa++) { /* Loop over various recursive factorizations */
-                for(ipfa = 0; ipfa < npfs;
-                    ipfa++) { /* Loop over various panel factorizations */
-                  for(inbm = 0; inbm < nbms;
-                      inbm++) { /* Loop over various recursive stopping criteria
-                                 */
-                    for(indv = 0; indv < ndvs;
-                        indv++) { /* Loop over various # of panels in recursion */
-                                  /*
-                                   * Set up the algorithm parameters
-                                   */
-                      algo.btopo = topval[itop];
-                      algo.depth = ndhval[indh];
-                      algo.nbmin = nbmval[inbm];
-                      algo.nbdiv = ndvval[indv];
-                      algo.comm_impls_types.allreduce_dmxswp_type = allreduce_dmxswp_types[iardmxswp];
+    for(auto mat_size : params.matrix_sizes) {
+      for(auto block_size : params.bs) { /* Loop over various blocking factors */
+        for(auto ldh : params.lookahead_depths) {
+          for(auto bcast_algo : params.bcast_algos) {
+            for(auto rfact : params.recursive_facts) { /* Loop over various recursive factorizations */
+              for(auto pfact : params.panel_facts) { /* Loop over various panel factorizations */
+                for(auto rstop : params.recursive_stop_crit) {
+                  for(auto npanelrecurse : params.num_panels_recursion) {
+                    //algo.btopo = topval[itop];
+                    //algo.depth = ndhval[indh];
+                    //algo.nbmin = nbmval[inbm];
+                    //algo.nbdiv = ndvval[indv];
+                    algo.btopo = bcast_algo;
+                    algo.depth = ldh;
+                    algo.nbmin = rstop;
+                    algo.nbdiv = npanelrecurse;
+                    algo.comm_impls_types.bcast_type = params.bcast_type;
+                    algo.comm_impls_types.allreduce_dmxswp_type = params.allreduce_dmxswp_type;
+                    algo.comm_impls_types.allgatherv_type = params.allgatherv_type;
+                    algo.comm_impls_types.scatterv_type = params.scatterv_type;
 
-                      algo.pfact = rpfa = pfaval[ipfa];
+                    algo.pfact = pfact;
 
-                      if(L1notran != 0) {
-                        if(rpfa == HPL_LEFT_LOOKING)
-                          algo.pffun = HPL_pdpanllN;
-                        else if(rpfa == HPL_CROUT)
-                          algo.pffun = HPL_pdpancrN;
-                        else
-                          algo.pffun = HPL_pdpanrlN;
+                    if(params.L1_no_transpose) {
+                      if(pfact == HPL_LEFT_LOOKING)
+                        algo.pffun = HPL_pdpanllN;
+                      else if(pfact == HPL_CROUT)
+                        algo.pffun = HPL_pdpancrN;
+                      else
+                        algo.pffun = HPL_pdpanrlN;
 
-                        algo.rfact = rpfa = rfaval[irfa];
-                        if(rpfa == HPL_LEFT_LOOKING)
-                          algo.rffun = HPL_pdrpanllN;
-                        else if(rpfa == HPL_CROUT)
-                          algo.rffun = HPL_pdrpancrN;
-                        else
-                          algo.rffun = HPL_pdrpanrlN;
+                      algo.rfact = rfact;
+                      if(rfact == HPL_LEFT_LOOKING)
+                        algo.rffun = HPL_pdrpanllN;
+                      else if(rfact == HPL_CROUT)
+                        algo.rffun = HPL_pdrpancrN;
+                      else
+                        algo.rffun = HPL_pdrpanrlN;
 
-                        algo.upfun = HPL_pdupdateNT;
-                      } else {
-                        if(rpfa == HPL_LEFT_LOOKING)
-                          algo.pffun = HPL_pdpanllT;
-                        else if(rpfa == HPL_CROUT)
-                          algo.pffun = HPL_pdpancrT;
-                        else
-                          algo.pffun = HPL_pdpanrlT;
+                      algo.upfun = HPL_pdupdateNT;
+                    } else {
+                      if(pfact == HPL_LEFT_LOOKING)
+                        algo.pffun = HPL_pdpanllT;
+                      else if(pfact == HPL_CROUT)
+                        algo.pffun = HPL_pdpancrT;
+                      else
+                        algo.pffun = HPL_pdpanrlT;
 
-                        algo.rfact = rpfa = rfaval[irfa];
-                        if(rpfa == HPL_LEFT_LOOKING)
-                          algo.rffun = HPL_pdrpanllT;
-                        else if(rpfa == HPL_CROUT)
-                          algo.rffun = HPL_pdrpancrT;
-                        else
-                          algo.rffun = HPL_pdrpanrlT;
+                      algo.rfact = rfact;
+                      if(rfact == HPL_LEFT_LOOKING)
+                        algo.rffun = HPL_pdrpanllT;
+                      else if(rfact == HPL_CROUT)
+                        algo.rffun = HPL_pdrpancrT;
+                      else
+                        algo.rffun = HPL_pdrpanrlT;
 
-                        algo.upfun = HPL_pdupdateTT;
-                      }
-
-                      algo.fswap = fswap;
-                      algo.fsthr = tswap;
-                      algo.equil = equil;
-                      algo.align = align;
-
-                      algo.frac = frac;
-
-                      HPL_pdtest(&test, &grid, &algo, nval[in], nbval[inb]);
+                      algo.upfun = HPL_pdupdateTT;
                     }
+
+                    algo.fswap = params.fswap;
+                    algo.fsthr = params.swap_threshold_cols;
+                    algo.equil = params.equil;
+                    algo.align = params.mem_align;
+
+                    algo.frac = params.frac;
+
+                    HPL_pdtest(&test, &grid, &algo, mat_size, block_size);
                   }
                 }
               }
@@ -221,8 +169,6 @@ int main(int ARGC, char** ARGV) {
     }
     (void)HPL_grid_exit(&grid);
     HPL_FreeGPU();
-
-  label_end_of_npqs:;
   }
   /*
    * Print ending messages, close output file, exit.

@@ -91,6 +91,8 @@ foreach(i ${rochpl_device_source})
   set_source_files_properties(${i} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT TRUE)
 endforeach()
 
+set_source_files_properties(src/HPL_pdinfo.cpp src/HPL_pddriver.cpp PROPERTIES COMPILE_OPTIONS "-Wall;-Werror")
+
 # HIP flags workaround while target_compile_options does not work
 list(APPEND HIP_HIPCC_FLAGS "-Wno-unused-command-line-argument -fPIE")
 list(APPEND CMAKE_HOST_FLAGS "")
