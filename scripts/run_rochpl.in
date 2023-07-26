@@ -29,6 +29,8 @@ function display_help()
   echo "    [-i]    Input file. When set, all other commnand      "
   echo "            line parameters are ignored, and problem      "
   echo "            parameters are read from input file.          "
+  echo "    [-o|--output_file]  Output file. Default: HPL.out     "
+  echo "    [--use_mpi_lbcast]  To Use MPI collective for lbcast  "
   echo "    [-h|--help] prints this help message                  "
   echo "    [--version] Print rocHPL version number.              "
 }
@@ -94,9 +96,15 @@ q=-1
 N=45312
 NB=384
 frac=0.6
+use_mpi_lbcast=false
+use_mpi_allreduce_dmxswp=false
+use_mpi_scatterv=false
+use_mpi_allgatherv=false
 
 filename=HPL.dat
 inputfile=false
+outfilename=HPL.out
+outputfile=false
 cmdrun=false
 
 export LD_LIBRARY_PATH=${rocblas_dir}:${blas_dir}:${rocm_dir}/lib:$LD_LIBRARY_PATH
@@ -110,7 +118,7 @@ oversubscribe=true
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version, --options hP:Q:p:q:N:i:f: -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version,output_file:,use_mpi_lbcast,use_mpi_allreduce_dmxswp,use_mpi_scatterv,use_mpi_allgatherv --options hP:Q:p:q:N:i:f:o: -- "$@")
 else
   echo "Need a new version of getopt"
   exit 1
@@ -160,6 +168,22 @@ while true; do
         filename=${2}
         inputfile=true
         shift 2 ;;
+    -o|--output_file)
+        outfilename=${2}
+        outputfile=true
+        shift 2 ;;
+    --use_mpi_lbcast)
+        use_mpi_lbcast=true
+        shift ;;
+    --use_mpi_allreduce_dmxswp)
+        use_mpi_allreduce_dmxswp=true
+        shift ;;
+    --use_mpi_scatterv)
+        use_mpi_scatterv=true
+        shift ;;
+    --use_mpi_allgatherv)
+        use_mpi_allgatherv=true
+        shift ;;
     --) shift ; break ;;
     *)  echo "Unexpected command line parameter received; aborting";
         exit 1
@@ -410,6 +434,23 @@ if [[ "${inputfile}" == true ]]; then
   rochpl_args+=" -i ${filename}"
 else
   rochpl_args+=" -N ${N} -NB ${NB}"
+fi
+
+if [[ "${outputfile}" == true ]]; then
+  rochpl_args+=" -o ${outfilename}"
+fi
+
+if [[ "${use_mpi_lbcast}" == true ]]; then
+    rochpl_args+=" --use_mpi_lbcast"
+fi
+if [[ "${use_mpi_allreduce_dmxswp}" == true ]]; then
+    rochpl_args+=" --use_mpi_allreduce_dmxswp"
+fi
+if [[ "${use_mpi_scatterv}" == true ]]; then
+    rochpl_args+=" --use_mpi_scatterv"
+fi
+if [[ "${use_mpi_allgatherv}" == true ]]; then
+    rochpl_args+=" --use_mpi_allgatherv"
 fi
 
 #run

@@ -26,7 +26,6 @@ int main(int ARGC, char** ARGV) {
    *
    * ---------------------------------------------------------------------
    */
-
   HPL_T_grid grid;
   HPL_T_palg algo;
   HPL_T_test test;

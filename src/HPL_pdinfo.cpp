@@ -224,6 +224,9 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
   bool        inputfile     = false;
   double      frac          = 0.6;
   std::string inputFileName = "HPL.dat";
+  std::string outfile_path{"HPL.out"};
+  bool use_mpi_lbcast = false, use_mpi_allreduce_dmxswp = false, use_mpi_allgatherv = false,
+       use_mpi_scatterv = false;
 
   for(int i = 1; i < ARGC; i++) {
     if(strcmp(ARGV[i], "-h") == 0 || strcmp(ARGV[i], "--help") == 0) {
@@ -260,7 +263,12 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
                "-h  [ --help ]                     Produces this help "
                "message                 \n"
                "--version                          Prints the version "
-               "number                  \n";
+               "number                  \n"
+               "-o [ --output_file ]               Name of output file [HPL.out]\n"
+               "--use_mpi_lbcast                   Use MPI collective for panel broadcast.\n"
+               "--use_mpi_allreduce_dmxswp         Use MPI collective for allreduce in pivoting.\n"
+               "--use_mpi_scatterv                 Use MPI collective for scatter during row swaps.\n"
+               "--use_mpi_allgatherv               Use MPI collective for all-gather during row swaps.\n";
       }
       MPI_Barrier(MPI_COMM_WORLD);
       MPI_Finalize();
@@ -353,6 +361,26 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
       inputFileName = ARGV[i + 1];
       inputfile     = true;
       i++;
+    }
+    if(strcmp(ARGV[i], "-o") == 0 || strcmp(ARGV[i], "--output_file") == 0) {
+      outfile_path = ARGV[i + 1];
+      i++;
+    }
+    if(strcmp(ARGV[i], "--use_mpi_lbcast") == 0) {
+        params.bcast_type = HPL_COMM_COLLECTIVE;
+        use_mpi_lbcast = true;
+    }
+    if(strcmp(ARGV[i], "--use_mpi_allreduce_dmxswp") == 0) {
+        params.allreduce_dmxswp_type = HPL_COMM_COLLECTIVE;
+        use_mpi_allreduce_dmxswp = true;
+    }
+    if(strcmp(ARGV[i], "--use_mpi_allgatherv") == 0) {
+        params.allgatherv_type = HPL_COMM_COLLECTIVE;
+        use_mpi_allgatherv = true;
+    }
+    if(strcmp(ARGV[i], "--use_mpi_scatterv") == 0) {
+        params.scatterv_type = HPL_COMM_COLLECTIVE;
+        use_mpi_scatterv = true;
     }
   }
 
@@ -511,11 +539,15 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
     TP[0] = HPL_1RING;
     params.bcast_algos.resize(1);
     params.bcast_algos[0] = HPL_1RING;
-    
-    params.bcast_type = HPL_COMM_CUSTOM_IMPL;
-    params.allreduce_dmxswp_type = HPL_COMM_CUSTOM_IMPL;
-    params.allgatherv_type = HPL_COMM_CUSTOM_IMPL;
-    params.scatterv_type = HPL_COMM_CUSTOM_IMPL;
+   
+    if(!use_mpi_lbcast) 
+        params.bcast_type = HPL_COMM_CUSTOM_IMPL;
+    if(!use_mpi_allreduce_dmxswp)
+        params.allreduce_dmxswp_type = HPL_COMM_CUSTOM_IMPL;
+    if(!use_mpi_allgatherv)
+        params.allgatherv_type = HPL_COMM_CUSTOM_IMPL;
+    if(!use_mpi_scatterv)
+        params.scatterv_type = HPL_COMM_CUSTOM_IMPL;
     /*
      * Lookahead depth (>=0) (NDH)
      */
@@ -557,7 +589,7 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
     TEST->epsil = HPL_pdlamch(MPI_COMM_WORLD, HPL_MACH_EPS);
 
     if(rank == 0) {
-      if((TEST->outfp = fopen("HPL.out", "w")) == NULL) { error = 1; }
+      if((TEST->outfp = fopen(outfile_path.c_str(), "w")) == NULL) { error = 1; }
     }
     (void)HPL_all_reduce((void*)(&error), 1, HPL_INT, HPL_MAX, MPI_COMM_WORLD);
     if(error) {
@@ -932,19 +964,23 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
       // Use collectives?
       fgets(line, HPL_LINE_MAX - 2, infp);
       (void)sscanf(line, "%s", num);
-      params.bcast_type = (atoi(num) == 1 ? HPL_COMM_COLLECTIVE : HPL_COMM_CUSTOM_IMPL);
+      if(!use_mpi_lbcast) 
+        params.bcast_type = (atoi(num) == 1 ? HPL_COMM_COLLECTIVE : HPL_COMM_CUSTOM_IMPL);
 
       fgets(line, HPL_LINE_MAX - 2, infp);
       (void)sscanf(line, "%s", num);
-      params.allreduce_dmxswp_type = (atoi(num) == 1 ? HPL_COMM_COLLECTIVE : HPL_COMM_CUSTOM_IMPL);
+      if(!use_mpi_allreduce_dmxswp)
+        params.allreduce_dmxswp_type = (atoi(num) == 1 ? HPL_COMM_COLLECTIVE : HPL_COMM_CUSTOM_IMPL);
       
       fgets(line, HPL_LINE_MAX - 2, infp);
       (void)sscanf(line, "%s", num);
-      params.allgatherv_type = (atoi(num) == 1 ? HPL_COMM_COLLECTIVE : HPL_COMM_CUSTOM_IMPL);
+      if(!use_mpi_allgatherv)
+        params.allgatherv_type = (atoi(num) == 1 ? HPL_COMM_COLLECTIVE : HPL_COMM_CUSTOM_IMPL);
       
       fgets(line, HPL_LINE_MAX - 2, infp);
       (void)sscanf(line, "%s", num);
-      params.scatterv_type = (atoi(num) == 1 ? HPL_COMM_COLLECTIVE : HPL_COMM_CUSTOM_IMPL);
+      if(!use_mpi_scatterv)
+        params.scatterv_type = (atoi(num) == 1 ? HPL_COMM_COLLECTIVE : HPL_COMM_CUSTOM_IMPL);
 
       /*
        * Lookahead depth (>=0) (NDH)
@@ -1570,6 +1606,32 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
         }
       }
     }
+    
+    HPL_fprintf(TEST->outfp, "\nBCAST impl           :");
+    if(params.bcast_type == HPL_COMM_CUSTOM_IMPL) {
+        HPL_fprintf(TEST->outfp, " HPL custom ");
+    } else {
+        HPL_fprintf(TEST->outfp, " MPI collective ");
+    }
+    HPL_fprintf(TEST->outfp, "\nAllreduce_dmxswp impl:");
+    if(params.allreduce_dmxswp_type == HPL_COMM_CUSTOM_IMPL) {
+        HPL_fprintf(TEST->outfp, " HPL custom ");
+    } else {
+        HPL_fprintf(TEST->outfp, " MPI collective ");
+    }
+    HPL_fprintf(TEST->outfp, "\nScatter impl         :");
+    if(params.scatterv_type == HPL_COMM_CUSTOM_IMPL) {
+        HPL_fprintf(TEST->outfp, " HPL custom ");
+    } else {
+        HPL_fprintf(TEST->outfp, " MPI collective ");
+    }
+    HPL_fprintf(TEST->outfp, "\nAllgather impl       :");
+    if(params.allgatherv_type == HPL_COMM_CUSTOM_IMPL) {
+        HPL_fprintf(TEST->outfp, " HPL custom ");
+    } else {
+        HPL_fprintf(TEST->outfp, " MPI collective ");
+    }
+
     /*
      * Broadcast topology
      */
