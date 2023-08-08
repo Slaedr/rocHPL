@@ -99,3 +99,39 @@ int HPL_bcast_1ring(double* SBUF, int SCOUNT, int ROOT, MPI_Comm COMM) {
 
   return MPI_SUCCESS;
 }
+
+
+int HPL_bcast_1ring_sync(double* SBUF, int SCOUNT, int ROOT, MPI_Comm COMM) {
+
+  int rank, size;
+  MPI_Comm_rank(COMM, &rank);
+  MPI_Comm_size(COMM, &size);
+
+  if(size <= 1) return (MPI_SUCCESS);
+  MPI_Status myStatus;
+  /*One ring exchange to rule them all*/
+  int chunk_size = 512 * 512; // 2MB
+
+  const int tag  = rank;
+  const int next = MModAdd1(rank, size);
+  const int prev = MModSub1(rank, size);
+
+  /*Mid point of message*/
+  double* RBUF = SBUF;
+
+  /*Shift to ROOT=0*/
+  rank = MModSub(rank, ROOT, size);
+  int Nsend = (rank == size - 1) ? 0 : SCOUNT;
+  int Nrecv = (rank == 0) ? 0 : SCOUNT;
+
+  /*Recv from left*/
+  int Nr = Nrecv;
+  if(Nr > 0) { MPI_recv(RBUF, Nr, MPI_DOUBLE, prev, prev, COMM,&myStatus); }
+
+  /*Send to right if there is data present to send*/
+  int Ns = Nsend;
+  if(Ns > 0) { MPI_send(SBUF, Ns, MPI_DOUBLE, next, tag, COMM); }
+
+
+  return MPI_SUCCESS;
+}
