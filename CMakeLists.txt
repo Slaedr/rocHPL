@@ -190,6 +190,18 @@ if(HPL_BUILD_FOR_CRAYPAT)
         )
     add_custom_target(rochpl_craypat_exec ALL
         DEPENDS "${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}+pat")
+elseif(HPL_BUILD_FOR_OMNITRACE)
+    set(ROCHPL_BIN "${CMAKE_INSTALL_PREFIX}/bin/rochpl-${PROJECT_VERSION}.inst")
+    message(STATUS "Will build Omnitrace inst executable at ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}.inst")
+    add_custom_command(COMMENT "Building OmniTrace instrumented executable"
+        OUTPUT "${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}.inst"
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+        COMMAND rm -f rochpl-${PROJECT_VERSION}.inst
+        COMMAND omnitrace-instrument -o rochpl-${PROJECT_VERSION}.inst -- rochpl-${PROJECT_VERSION}
+        DEPENDS rochpl
+        )
+    add_custom_target(rochpl_omnitrace_exec ALL
+        DEPENDS "${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}.inst")
 else()
     set(ROCHPL_BIN "${CMAKE_INSTALL_PREFIX}/bin/rochpl-${PROJECT_VERSION}")
 endif()
@@ -217,6 +229,9 @@ install(PROGRAMS ${CMAKE_BINARY_DIR}/run_rochpl ${CMAKE_BINARY_DIR}/mpirun_rochp
         DESTINATION ${CMAKE_INSTALL_PREFIX})
 if(HPL_BUILD_FOR_CRAYPAT)
     install(PROGRAMS ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}+pat
+            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+elseif(HPL_BUILD_FOR_OMNITRACE)
+    install(PROGRAMS ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}.inst
             DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 endif()
 install(FILES ${CMAKE_BINARY_DIR}/HPL.dat

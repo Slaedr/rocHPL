@@ -390,6 +390,10 @@ pushd .
     rm -rf ${build_dir}/relwithdebinfo
     mkdir -p ${build_dir}/relwithdebinfo && cd ${build_dir}/relwithdebinfo
     cmake_common_options="${cmake_common_options} -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+  elif [[ "${build_type}" == "omnitrace" ]]; then
+    rm -rf ${build_dir}/relwithdebinfo
+    mkdir -p ${build_dir}/relwithdebinfo && cd ${build_dir}/relwithdebinfo
+    cmake_common_options="${cmake_common_options} -DHPL_BUILD_FOR_OMNITRACE=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo"
   fi
 
   #if [[ "${collective_other}" == true ]]; then
