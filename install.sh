@@ -256,6 +256,7 @@ verbose_print=true
 progress_report=true
 detailed_timing=true
 build_type=release
+rocprof_trace=false
 
 # #################################################
 # Parameter parsing
@@ -264,7 +265,7 @@ build_type=release
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions help,debug,build-type:,prefix:,with-rocm:,with-mpi:,with-rocblas:,with-cpublas:,verbose-print:,progress-report:,detailed-timing: --options hgb: -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions help,debug,build-type:,prefix:,with-rocm:,with-mpi:,with-rocblas:,with-cpublas:,verbose-print:,progress-report:,detailed-timing:,rocprof-trace --options hgb: -- "$@")
 else
   echo "Need a new version of getopt"
   exit_with_error 1
@@ -313,6 +314,9 @@ while true; do
     --detailed-timing)
         detailed_timing=${2}
         shift 2 ;;
+    --rocprof-trace)
+        rocprof_trace=true
+        shift ;;
     --) shift ; break ;;
     *)  echo "Unexpected command line parameter received; aborting";
         exit_with_error 1
@@ -403,6 +407,11 @@ pushd .
   #if [[ "${collective_bcast}" == true ]]; then
   #  cmake_common_options="${cmake_common_options} -DHPL_BCAST_USE_COLLECTIVES=ON"
   #fi
+
+  if [[ "${rocprof_trace}" == "true" ]]; then
+      echo "WARNING: Building for rocprof tracing and NOT production runs"
+      cmake_common_options="${cmake_common_options} -DHPL_BUILD_FOR_ROCPROF=ON"
+  fi
 
 
   shopt -s nocasematch

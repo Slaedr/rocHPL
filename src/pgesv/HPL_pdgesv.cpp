@@ -16,6 +16,8 @@
 
 #include "hpl.hpp"
 
+#include <roctracer/roctracer_ext.h>
+
 void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
   /*
    * Purpose
@@ -105,6 +107,9 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
       GRID, ALGO, nn, nn + 1, Mmin(nn, nb), A, jstart, jstart, tag, &panel[1]);
   tag = MNxtMgid(tag, MSGID_BEGIN_FACT, MSGID_END_FACT);
 
+  // start tracing
+  roctracer_start();
+
   /*
    * Initialize the lookahead - Factor jstart columns: panel[0]
    */
@@ -179,6 +184,11 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
    * Main loop over the remaining columns of A
    */
   for(j = jstart; j < N; j += nb) {
+#ifdef HPL_BUILD_FOR_ROCPROF
+    if(j >= N / 6) {
+        break;
+    }
+#endif
     HPL_ptimer_stepReset(HPL_TIMING_N, HPL_TIMING_BEG);
 
     stepStart = MPI_Wtime();
@@ -397,6 +407,8 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
 #ifdef HPL_DETAILED_TIMING
   HPL_ptimer(HPL_TIMING_UPDATE);
 #endif
+  
+  roctracer_stop();
 
   HPL_pdpanel_disp(&panel[0]);
   HPL_pdpanel_disp(&panel[1]);
@@ -405,5 +417,7 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
   /*
    * Solve upper triangular system
    */
+#ifndef HPL_BUILD_FOR_ROCPROF
   if(A->info == 0) HPL_pdtrsv(GRID, A);
+#endif
 }
