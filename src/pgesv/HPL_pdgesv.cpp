@@ -107,8 +107,10 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
       GRID, ALGO, nn, nn + 1, Mmin(nn, nb), A, jstart, jstart, tag, &panel[1]);
   tag = MNxtMgid(tag, MSGID_BEGIN_FACT, MSGID_END_FACT);
 
+#ifdef HPL_BUILD_FOR_ROCPROF
   // start tracing
   roctracer_start();
+#endif
 
   /*
    * Initialize the lookahead - Factor jstart columns: panel[0]
@@ -408,7 +410,9 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
   HPL_ptimer(HPL_TIMING_UPDATE);
 #endif
   
+#ifdef HPL_BUILD_FOR_ROCPROF
   roctracer_stop();
+#endif
 
   HPL_pdpanel_disp(&panel[0]);
   HPL_pdpanel_disp(&panel[1]);
