@@ -16,7 +16,63 @@
 
 #include "hpl.hpp"
 
+#include <string>
+#include <vector>
+
 #include <roctracer/roctracer_ext.h>
+
+#ifdef HPL_BUILD_FOR_ROCPROF
+
+struct clock_sync_data {
+    std::vector<int> traced_ranks;
+};
+
+void clock_sync_event(const clock_sync_data& csd)
+{
+    int rank{};
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    double payload = static_cast<double>(rank + 1.0);
+
+    roctxRangePush("App_clock_sync");
+
+    // ping
+    if (rank == 0) {
+        // root; receive messages
+        for(auto other_rank : csd.traced_ranks) {
+            if(other_rank != 0) {
+                MPI_Recv(&payload, 1, MPI_DOUBLE, other_rank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            }
+        }
+    }
+    for(auto tr_rank : csd.traced_ranks) {
+        if (rank != 0 && rank == tr_rank) {
+            // traced rank not root; send message to root
+            MPI_Send(&payload, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+        }
+    }
+
+    // pong 
+    for(auto tr_rank : csd.traced_ranks) {
+        if (rank != 0 && rank == tr_rank) {
+            // traced rank not root; receive message
+            MPI_Recv(&payload, 1, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+    }
+    if (rank == 0) {
+        // root; send messages
+        for(auto other_rank : csd.traced_ranks) {
+            if(other_rank != 0) {
+                MPI_Send(&payload, 1, MPI_DOUBLE, other_rank, 1, MPI_COMM_WORLD);
+            }
+        }
+    }
+
+    roctxRangePop();
+    
+    //MPI_Barrier(MPI_COMM_WORLD);
+}
+
+#endif
 
 void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
   /*
@@ -110,6 +166,22 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
 #ifdef HPL_BUILD_FOR_ROCPROF
   // start tracing
   roctracer_start();
+
+  // TODO: select ranks based on process mapping (row-major vs col major)
+  // For now, this is for col major
+  clock_sync_data csd;
+  csd.traced_ranks = std::vector<int>{0};
+  if(GRID->nprocs > 1) {
+    csd.traced_ranks.push_back(1);
+    if(GRID->nprocs > GRID->nprow) {
+      csd.traced_ranks.push_back(GRID->nprow);
+      csd.traced_ranks.push_back((GRID->local_npcol-1)*GRID->nprow);
+      if(GRID->npcol > GRID->local_npcol) {
+        csd.traced_ranks.push_back(GRID->local_npcol*GRID->nprow);
+      }
+    }
+  }
+  clock_sync_event(csd);
 #endif
 
   /*

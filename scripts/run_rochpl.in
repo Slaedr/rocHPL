@@ -471,7 +471,7 @@ fi
 
 executor=""
 trace_factor=$((globalSize/num_ranks_traced))
-if [[ "${rocprof_trace_run}" == true && ( $((globalRank%trace_factor)) -eq 0 || $globalRank -eq 4 || $globalRank -eq ${Q} ) ]]; then
+if [[ "${rocprof_trace_run}" == true && ( $((globalRank%trace_factor)) -eq 0 || $globalRank -eq 1 || $globalRank -eq $P || $globalRank -eq $(((q-1)*P)) || $globalRank -eq $((q*P)) ) ]]; then
     executor="rocprof --roctx-trace --hip-trace -d ${trace_output_path}/${SLURM_PROCID} -o ${trace_output_path}/${SLURM_PROCID}/results.csv"
 elif [[ "${hpct_trace_run}" == true ]]; then
     executor="hpcrun -o hpctoolkit-measurement-$SLURM_JOB_NAME-$SLURM_JOB_ID -e gpu=amd -e CPUTIME --trace"
