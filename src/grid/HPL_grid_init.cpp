@@ -94,8 +94,8 @@ int HPL_grid_init(MPI_Comm          COMM,
     myrow = noderow * p + local_myrow;
     mycol = nodecol * q + local_mycol;
 
-    myrow = rank / NPCOL;
-    mycol = rank - myrow * NPCOL;
+    //myrow = rank / NPCOL;
+    //mycol = rank - myrow * NPCOL;
   } else {
     GRID->order = HPL_COLUMN_MAJOR;
     local_mycol = local_rank / p;

@@ -96,6 +96,7 @@ q=-1
 N=45312
 NB=384
 frac=0.6
+proc_grid_layout=COLUMN_MAJOR
 use_mpi_lbcast=false
 use_mpi_allreduce_dmxswp=false
 use_mpi_scatterv=false
@@ -122,7 +123,7 @@ oversubscribe=true
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version,output_file:,use_mpi_lbcast,use_mpi_allreduce_dmxswp,use_mpi_scatterv,use_mpi_allgatherv,rocprof,hpct,trace_output_path:,num_ranks_traced: --options hP:Q:p:q:N:i:f:o: -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version,process_grid_layout:,output_file:,use_mpi_lbcast,use_mpi_allreduce_dmxswp,use_mpi_scatterv,use_mpi_allgatherv,rocprof,hpct,trace_output_path:,num_ranks_traced: --options hP:Q:p:q:N:i:f:o: -- "$@")
 else
   echo "Need a new version of getopt"
   exit 1
@@ -171,6 +172,9 @@ while true; do
     -i)
         filename=${2}
         inputfile=true
+        shift 2 ;;
+    --process_grid_layout)
+        proc_grid_layout=$(echo ${2} | tr '[:lower:]' '[:upper:]')
         shift 2 ;;
     -o|--output_file)
         outfilename=${2}
@@ -469,9 +473,26 @@ if [[ "${use_mpi_allgatherv}" == true ]]; then
     rochpl_args+=" --use_mpi_allgatherv"
 fi
 
+this_rank_rocprof=false
+if [[ "${rocprof_trace_run}" == true ]]; then
+    if [[ "${proc_grid_layout}" == ROW_MAJOR ]]; then
+        if [[ $globalRank -eq 0 || $globalRank -eq 1 || $globalRank -eq 2 || $globalRank -eq $((Q-1)) || $globalRank -eq $((Q*p)) ]]; then
+            this_rank_rocprof=true
+        fi
+    elif [[ "${proc_grid_layout}" == COLUMN_MAJOR ]]; then
+        lastnodecol=$((Q/q-1))
+        cm_last_col=$((P*lastnodecol+q-1))
+        if [[ $globalRank -eq 0 || $globalRank -eq 1 || $globalRank -eq 2 || $globalRank -eq $cm_last_col || $globalRank -eq $size ]]; then
+            this_rank_rocprof=true
+        fi
+    else
+        echo "Invalid process grid layout!"
+        exit -1
+    fi
+fi
+
 executor=""
-trace_factor=$((globalSize/num_ranks_traced))
-if [[ "${rocprof_trace_run}" == true && ( $((globalRank%trace_factor)) -eq 0 || $globalRank -eq 1 || $globalRank -eq $P || $globalRank -eq $(((q-1)*P)) || $globalRank -eq $((q*P)) ) ]]; then
+if [[ "${this_rank_rocprof}" == true ]]; then
     executor="rocprof --roctx-trace --hip-trace -d ${trace_output_path}/${SLURM_PROCID} -o ${trace_output_path}/${SLURM_PROCID}/results.csv"
 elif [[ "${hpct_trace_run}" == true ]]; then
     executor="hpcrun -o hpctoolkit-measurement-$SLURM_JOB_NAME-$SLURM_JOB_ID -e gpu=amd -e CPUTIME --trace"

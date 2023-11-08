@@ -17,7 +17,10 @@
 #include "hpl.hpp"
 #include <iostream>
 #include <cstdio>
-#include <cstring>
+#include <string>
+#include <cctype>
+#include <algorithm>
+#include <stdexcept>
 
 HPL_Test_params HPL_pdinfo(int          ARGC,
                 char**       ARGV,
@@ -357,6 +360,18 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
       frac = atof(ARGV[i + 1]);
       i++;
     }
+    if(strcmp(ARGV[i], "--process_grid_layout") == 0) {
+      std::string grid_layout = ARGV[i + 1];
+      std::transform(grid_layout.begin(), grid_layout.end(), grid_layout.begin(), ::toupper);
+      if(grid_layout == "ROW_MAJOR") {
+          params.process_ordering = HPL_ROW_MAJOR;
+      } else if(grid_layout == "COLUMN_MAJOR") {
+          params.process_ordering = HPL_COLUMN_MAJOR;
+      } else {
+          throw std::invalid_argument("Invalid process grid layout!");
+      }
+      i++;
+    }
     if(strcmp(ARGV[i], "-i") == 0 || strcmp(ARGV[i], "--input") == 0) {
       inputFileName = ARGV[i + 1];
       inputfile     = true;
@@ -495,7 +510,6 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
     /*
      * Process grids, mapping, (>=1) (P, Q)
      */
-    params.process_ordering = HPL_COLUMN_MAJOR;
     params.process_ordering = HPL_COLUMN_MAJOR;
     nPQS    = 1;
     P[0]     = _P;

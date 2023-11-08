@@ -18,6 +18,7 @@
 
 #include <string>
 #include <vector>
+#include <stdexcept>
 
 #include <roctracer/roctracer_ext.h>
 
@@ -167,19 +168,30 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
   // start tracing
   roctracer_start();
 
-  // TODO: select ranks based on process mapping (row-major vs col major)
-  // For now, this is for col major
+  // select ranks based on process mapping (row-major vs col major)
+  /* Add (0,0), (0,1), (0,2), (0,Q-1), (p,0) ranks.
+   */
   clock_sync_data csd;
   csd.traced_ranks = std::vector<int>{0};
   if(GRID->nprocs > 1) {
     csd.traced_ranks.push_back(1);
-    if(GRID->nprocs > GRID->nprow) {
-      csd.traced_ranks.push_back(GRID->nprow);
-      csd.traced_ranks.push_back((GRID->local_npcol-1)*GRID->nprow);
-      if(GRID->npcol > GRID->local_npcol) {
-        csd.traced_ranks.push_back(GRID->local_npcol*GRID->nprow);
-      }
+  }
+  if(GRID->local_npcol > 2) {
+    csd.traced_ranks.push_back(2);
+  } else {
+      throw std::runtime_error("Local npcol <= 2 not supported!");
+  }
+  if(GRID->order == HPL_COLUMN_MAJOR) {
+    const auto lastnodecol = GRID->npcol / GRID->local_npcol - 1;
+    csd.traced_ranks.push_back(GRID->nprow*lastnodecol + GRID->local_npcol - 1);
+    if(GRID->nprocs > GRID->local_npcol*GRID->local_nprow) {
+        csd.traced_ranks.push_back(GRID->local_npcol*GRID->local_nprow);
     }
+  } else {
+      csd.traced_ranks.push_back(GRID->npcol-1);
+      if(GRID->nprow > GRID->local_nprow) {
+        csd.traced_ranks.push_back(GRID->npcol * GRID->local_nprow);
+      }
   }
   clock_sync_event(csd);
 #endif
