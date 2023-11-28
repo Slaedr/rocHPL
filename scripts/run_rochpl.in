@@ -476,7 +476,8 @@ fi
 this_rank_rocprof=false
 if [[ "${rocprof_trace_run}" == true ]]; then
     if [[ "${proc_grid_layout}" == ROW_MAJOR ]]; then
-        if [[ $globalRank -eq 0 || $globalRank -eq 1 || $globalRank -eq 2 || $globalRank -eq $((Q-1)) || $globalRank -eq $((Q*p)) ]]; then
+        #if [[ $globalRank -eq 0 || $globalRank -eq 1 || $globalRank -eq 2 || $globalRank -eq $((Q-1)) || $globalRank -eq $((Q*p)) ]]; then
+        if [[ $globalRank -eq 0 || $globalRank -eq 1 || $globalRank -eq $((Q-1)) || $globalRank -eq $((Q*p)) || $globalRank -eq $((Q*(P-1))) ]]; then
             this_rank_rocprof=true
         fi
     elif [[ "${proc_grid_layout}" == COLUMN_MAJOR ]]; then

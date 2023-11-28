@@ -188,9 +188,10 @@ void HPL_pdgesv(HPL_T_grid* GRID, HPL_T_palg* ALGO, HPL_T_pmat* A) {
         csd.traced_ranks.push_back(GRID->local_npcol*GRID->local_nprow);
     }
   } else {
-      csd.traced_ranks.push_back(GRID->npcol-1);
+      //csd.traced_ranks.push_back(GRID->npcol-1);
       if(GRID->nprow > GRID->local_nprow) {
         csd.traced_ranks.push_back(GRID->npcol * GRID->local_nprow);
+        csd.traced_ranks.push_back(GRID->npcol * (GRID->nprow-1));
       }
   }
   clock_sync_event(csd);
