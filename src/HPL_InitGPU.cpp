@@ -9,6 +9,7 @@
  */
 
 #include "hpl.hpp"
+#include "hpl_hip.hpp"
 #include <algorithm>
 
 rocblas_handle handle;

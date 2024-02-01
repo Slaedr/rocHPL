@@ -20,6 +20,7 @@
 #include <vector>
 #include <stdexcept>
 
+#include "hpl_hip.hpp"
 #include <roctracer/roctracer_ext.h>
 
 #ifdef HPL_BUILD_FOR_ROCPROF

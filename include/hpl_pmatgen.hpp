@@ -20,7 +20,7 @@
  * Include files
  * ---------------------------------------------------------------------
  */
-#include "hpl_misc.hpp"
+#include <cstdint>
 
 #include "hpl_pmisc.hpp"
 #include "hpl_pauxil.hpp"

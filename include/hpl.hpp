@@ -27,22 +27,6 @@
 #undef HPL_USE_COLLECTIVES
 //#define HPL_USE_COLLECTIVES
 
-/*
- * ---------------------------------------------------------------------
- * Include files
- * ---------------------------------------------------------------------
- */
-#include <omp.h>
-
-// NC: hipcc in ROCm 3.7 complains if __HIP_PLATFORM_HCC__ is defined in the
-// compile line
-#ifdef __HIPCC__
-#ifdef __HIP_PLATFORM_HCC__
-#undef __HIP_PLATFORM_HCC__
-#endif
-#endif
-#include "hip/hip_runtime_api.h"
-
 #include "hpl_version.hpp"
 #include "hpl_misc.hpp"
 #include "hpl_blas.hpp"

@@ -15,6 +15,7 @@
  */
 
 #include "hpl.hpp"
+#include "hpl_hip.hpp"
 #include <unistd.h>
 
 static int Malloc(HPL_T_grid* GRID, void** ptr, const size_t bytes) {

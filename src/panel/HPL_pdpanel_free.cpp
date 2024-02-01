@@ -14,6 +14,7 @@
  * ---------------------------------------------------------------------
  */
 #include "hpl.hpp"
+#include "hpl_hip.hpp"
 
 int HPL_pdpanel_free(HPL_T_panel* PANEL) {
   /*

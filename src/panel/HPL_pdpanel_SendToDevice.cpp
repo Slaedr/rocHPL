@@ -8,6 +8,7 @@
  * ---------------------------------------------------------------------
  */
 #include "hpl.hpp"
+#include "hpl_hip.hpp"
 
 void HPL_unroll_ipiv(const int mp,
                      const int jb,

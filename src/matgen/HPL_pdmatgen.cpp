@@ -9,7 +9,7 @@
  */
 
 #include "hpl.hpp"
-#include <hip/hip_runtime_api.h>
+#include "hpl_hip.hpp"
 #include <cassert>
 #include <unistd.h>
 

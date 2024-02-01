@@ -13,8 +13,8 @@
  *    SPDX-License-Identifier: (BSD-3-Clause)
  * ---------------------------------------------------------------------
  */
-
 #include "hpl.hpp"
+#include "hpl_hip.hpp"
 
 void HPL_pdupdateNT(HPL_T_panel* PANEL, const HPL_T_UPD UPD) {
   /*

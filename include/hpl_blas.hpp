@@ -15,20 +15,6 @@
  */
 #ifndef HPL_BLAS_HPP
 #define HPL_BLAS_HPP
-/*
- * ---------------------------------------------------------------------
- * Include files
- * ---------------------------------------------------------------------
- */
-
-#include "hpl_misc.hpp"
-#include <rocblas/rocblas.h>
-#include <roctracer.h>
-#include <roctx.h>
-
-extern rocblas_handle handle;
-extern hipStream_t    computeStream;
-extern hipStream_t    dataStream;
 
 #if __cplusplus
 extern "C" {

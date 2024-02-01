@@ -60,6 +60,9 @@
  * Align pointer
  */
 #define HPL_PTR(ptr_, al_) ((((size_t)(ptr_) + (al_)-1) / (al_)) * (al_))
+
+typedef enum { HPL_INT = 100, HPL_DOUBLE = 101 } HPL_T_TYPE;
+
 #endif
 /*
  * End of hpl_misc.hpp

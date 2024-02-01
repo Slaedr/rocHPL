@@ -27,7 +27,6 @@
  * #typedefs and data structures
  * ---------------------------------------------------------------------
  */
-typedef enum { HPL_INT = 100, HPL_DOUBLE = 101 } HPL_T_TYPE;
 
 typedef enum { HPL_ROW_MAJOR = 201, HPL_COLUMN_MAJOR = 202 } HPL_T_ORDER;
 

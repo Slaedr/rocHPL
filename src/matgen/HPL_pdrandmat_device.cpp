@@ -16,6 +16,8 @@
 
 #include "hpl.hpp"
 
+#include "hpl_hip.hpp"
+
 #define BLOCK_SIZE 512
 
 __global__ void hpl_randmat(const int      mp,

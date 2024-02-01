@@ -14,8 +14,14 @@
  * ---------------------------------------------------------------------
  */
 
-#include "hpl.hpp"
+#include <omp.h>
 #include <assert.h>
+
+#include "hpl.hpp"
+
+#ifndef HPL_BUILD_TESTING
+#include "hpl_hip.hpp"
+#endif
 
 void HPL_pdfact(HPL_T_panel* PANEL, const HPL_Comm_impl_type allreduce_type) {
   /*
@@ -78,7 +84,9 @@ void HPL_pdfact(HPL_T_panel* PANEL, const HPL_Comm_impl_type allreduce_type) {
   double max_value[128];
   int    max_index[128];
 
+#ifndef HPL_BUILD_TESTING
   roctxRangePush("pdfact");
+#endif
 
 #pragma omp parallel shared(max_value, max_index)
   {
@@ -97,7 +105,9 @@ void HPL_pdfact(HPL_T_panel* PANEL, const HPL_Comm_impl_type allreduce_type) {
                        max_index, allreduce_type);
   }
 
+#ifndef HPL_BUILD_TESTING
   roctxRangePop();
+#endif
 
   // PANEL->A   = Mptr( PANEL->A, 0, jb, PANEL->lda );
   PANEL->dA = Mptr(PANEL->dA, 0, jb, PANEL->dlda);

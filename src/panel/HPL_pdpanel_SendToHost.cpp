@@ -8,6 +8,7 @@
  * ---------------------------------------------------------------------
  */
 #include "hpl.hpp"
+#include "hpl_hip.hpp"
 
 void HPL_pdpanel_SendToHost(HPL_T_panel* PANEL) {
   int jb;

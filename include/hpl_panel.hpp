@@ -15,6 +15,7 @@
  */
 #ifndef HPL_PANEL_HPP
 #define HPL_PANEL_HPP
+
 /*
  * ---------------------------------------------------------------------
  * Include files
@@ -110,7 +111,7 @@ typedef struct HPL_S_panel {
  * panel function prototypes
  * ---------------------------------------------------------------------
  */
-#include "hpl_pgesv.hpp"
+#include "hpl_pgesv_types.hpp"
 
 void HPL_pdpanel_new(HPL_T_grid*,
                      HPL_T_palg*,

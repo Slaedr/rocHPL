@@ -15,6 +15,7 @@
  */
 
 #include "hpl.hpp"
+#include "hpl_hip.hpp"
 #include <assert.h>
 
 /* MPI_Op_create is called in main to bind HPL_dmxswp to this MPI_Op */

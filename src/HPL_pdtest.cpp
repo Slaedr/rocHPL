@@ -21,6 +21,7 @@
 #endif
 
 #include "hpl.hpp"
+#include "hpl_hip.hpp"
 
 void HPL_pdtest(HPL_T_test* TEST,
                 HPL_T_grid* GRID,

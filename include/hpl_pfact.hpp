@@ -15,17 +15,7 @@
  */
 #ifndef HPL_PFACT_HPP
 #define HPL_PFACT_HPP
-/*
- * ---------------------------------------------------------------------
- * Include files
- * ---------------------------------------------------------------------
- */
-#include "hpl_misc.hpp"
-#include "hpl_blas.hpp"
 
-#include "hpl_pgesv.hpp"
-#include "hpl_pmisc.hpp"
-#include "hpl_pauxil.hpp"
 #include "hpl_panel.hpp"
 
 /*
@@ -33,27 +23,6 @@
  * #typedefs and data structures
  * ---------------------------------------------------------------------
  */
-typedef void (*HPL_T_PFA_FUN)(HPL_T_panel*,
-                              const int,
-                              const int,
-                              const int,
-                              double*,
-                              int,
-                              int,
-                              double*,
-                              int*,
-                              HPL_Comm_impl_type);
-
-typedef void (*HPL_T_RFA_FUN)(HPL_T_panel*,
-                              const int,
-                              const int,
-                              const int,
-                              double*,
-                              int,
-                              int,
-                              double*,
-                              int*,
-                              HPL_Comm_impl_type);
 /*
  * ---------------------------------------------------------------------
  * Function prototypes

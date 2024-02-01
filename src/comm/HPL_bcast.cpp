@@ -15,6 +15,7 @@
  */
 
 #include "hpl.hpp"
+#include "hpl_hip.hpp"
 
 int HPL_bcast(double*   SBUF,
               int       SCOUNT,
