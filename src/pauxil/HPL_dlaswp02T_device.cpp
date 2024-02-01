@@ -15,6 +15,7 @@
  */
 
 #include "hpl.hpp"
+#include "hpl_hip.hpp"
 #include <hip/hip_runtime.h>
 #include <cassert>
 

@@ -10,8 +10,10 @@
 
 #include "hpl.hpp"
 #include "hpl_hip.hpp"
+
 #include <cassert>
 #include <unistd.h>
+#include <omp.h>
 
 const int max_nthreads = 128;
 
