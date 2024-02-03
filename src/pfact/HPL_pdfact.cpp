@@ -19,7 +19,7 @@
 
 #include "hpl.hpp"
 
-#ifndef HPL_BUILD_TESTING
+#ifndef HPL_BUILD_TESTS
 #include "hpl_hip.hpp"
 #endif
 
@@ -84,7 +84,7 @@ void HPL_pdfact(HPL_T_panel* PANEL, const HPL_Comm_impl_type allreduce_type) {
   double max_value[128];
   int    max_index[128];
 
-#ifndef HPL_BUILD_TESTING
+#ifndef HPL_BUILD_TESTS
   roctxRangePush("pdfact");
 #endif
 
@@ -105,7 +105,7 @@ void HPL_pdfact(HPL_T_panel* PANEL, const HPL_Comm_impl_type allreduce_type) {
                        max_index, allreduce_type);
   }
 
-#ifndef HPL_BUILD_TESTING
+#ifndef HPL_BUILD_TESTS
   roctxRangePop();
 #endif
 

@@ -15,7 +15,11 @@
  */
 
 #include "hpl.hpp"
+
+#ifndef HPL_BUILD_WITHOUT_HIP
 #include "hpl_hip.hpp"
+#endif
+
 #include <assert.h>
 
 /* MPI_Op_create is called in main to bind HPL_dmxswp to this MPI_Op */
@@ -83,7 +87,9 @@ void HPL_all_reduce_dmxswp(double*   BUFFER,
    * ---------------------------------------------------------------------
    */
 
+#ifndef HPL_BUILD_WITHOUT_HIP
   roctxRangePush("HPL_all_reduce_dmxswp");
+#endif
 
   if(comm_type == HPL_COMM_COLLECTIVE) {
 
@@ -296,5 +302,7 @@ void HPL_all_reduce_dmxswp(double*   BUFFER,
     }
 
   }                          // comm_type
+#ifndef HPL_BUILD_WITHOUT_HIP
   roctxRangePop();
+#endif
 }

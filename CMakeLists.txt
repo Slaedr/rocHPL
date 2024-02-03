@@ -30,6 +30,8 @@ option(HPL_PROGRESS_REPORT "Enable printing progess report to terminal during ru
 option(HPL_DETAILED_TIMING "Enable detailed timers during run" OFF)
 #option(HPL_OTHER_USE_COLLECTIVES "Enable native MPI collectives for allgatherv, scatterv and all-reduce-dmxswp" OFF)
 #option(HPL_BCAST_USE_COLLECTIVES "Enable native MPI collective for LBCAST" OFF)
+option(HPL_BUILD_TESTS "Build test suite" ON)
+option(HPL_BUILD_WITHOUT_HIP "Disable HIP-dependent parts for testing" OFF)
 
 option(ROCM_PATH "Path to ROCm install" /opt/rocm)
 option(HPL_BLAS_DIR "Path to CPU BLAS library" ${CMAKE_CURRENT_SOURCE_DIR}/tpl/openblas)
@@ -67,195 +69,223 @@ option(HPL_DEBUG "Compile with modest debugging turned on" OFF)
 option(HPL_DETAILED_DEBUG "Compile with voluminous debugging information turned on" OFF)
 option(HPL_DETAILED_TIMING "Enable detail timers" OFF)
 option(HPL_REFERENCE "Build reference mode" OFF)
-option(BUILD_TEST "Build rocHPL single-node test" OFF)
+#option(BUILD_TEST "Build rocHPL single-node test" OFF)
+
+if(NOT HPL_BUILD_TESTS)
+    set(HPL_BUILD_WITHOUT_HIP OFF)
+else()
+    add_compile_definitions(HPL_BUILD_TESTS=1)
+endif()
 
 # Dependencies
 include(cmake/Dependencies.cmake)
-
-# Setup version
-rocm_setup_version(VERSION 6.0.0)
 
 # This option only works for make/nmake and the ninja generators, but no reason it shouldn't be on all the time
 # This tells cmake to create a compile_commands.json file that can be used with clang tooling or vim
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# HPL sources
-file(GLOB_RECURSE rochpl_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.cpp")
-
-# HPL device sources
+#set(HOST_SOURCE_FILES pfact/*)
+file(GLOB rochpl_host_sources RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/pfact/*.cpp"
+    "src/auxil/*.cpp" "src/pauxil/*.cpp" "src/blas/*.cpp" "src/comm/HPL_all_reduce_dmxswp.cpp" "src/grid/*.cpp")
 file(GLOB_RECURSE rochpl_device_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*_device.cpp")
-list(REMOVE_ITEM rochpl_source ${rochpl_device_source})
+list(REMOVE_ITEM rochpl_host_sources ${rochpl_device_source})
 
-# Flag source files as hip source files
-foreach(i ${rochpl_device_source})
-  set_source_files_properties(${i} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT TRUE)
-endforeach()
-
-set_source_files_properties(src/HPL_pdinfo.cpp src/HPL_pddriver.cpp PROPERTIES COMPILE_OPTIONS "-Wall;-Werror")
-
-# HIP flags workaround while target_compile_options does not work
-list(APPEND HIP_HIPCC_FLAGS "-Wno-unused-command-line-argument -fPIE")
-list(APPEND CMAKE_HOST_FLAGS "")
-
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-  list(APPEND HIP_HIPCC_FLAGS "-g -ggdb")
-  list(APPEND CMAKE_HOST_FLAGS "-O0;-g")
+if(HPL_BUILD_WITHOUT_HIP)
+    add_compile_definitions(HPL_BUILD_WITHOUT_HIP=1)
+    add_library(rochpl_host ${rochpl_host_sources})
+    target_include_directories(rochpl_host
+        PRIVATE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
+        PUBLIC $<BUILD_INTERFACE:${HPL_MPI_DIR}/include>)
+    target_link_libraries(rochpl_host PUBLIC MPI::MPI_CXX)
+    target_link_libraries(rochpl_host PRIVATE OpenMP::OpenMP_CXX)
+    target_link_libraries(rochpl_host PRIVATE BLAS::BLAS)
+    # Configure a header file to pass the rocHPL version
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/hpl_version.hpp.in"
+                   "${PROJECT_BINARY_DIR}/include/hpl_version.hpp")
 else()
-  list(APPEND HIP_HIPCC_FLAGS "-O3 -march=native -ffp-contract=fast -ffast-math -funsafe-math-optimizations")
-  list(APPEND CMAKE_HOST_FLAGS "-O3;-march=native")
+    # Setup version
+    rocm_setup_version(VERSION 6.0.0)
+
+    # HPL sources
+    file(GLOB_RECURSE rochpl_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.cpp")
+
+    # HPL device sources
+    #file(GLOB_RECURSE rochpl_device_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*_device.cpp")
+    list(REMOVE_ITEM rochpl_source ${rochpl_device_source})
+
+    # Flag source files as hip source files
+    foreach(i ${rochpl_device_source})
+      set_source_files_properties(${i} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT TRUE)
+    endforeach()
+
+    set_source_files_properties(src/HPL_pdinfo.cpp src/HPL_pddriver.cpp PROPERTIES COMPILE_OPTIONS "-Wall;-Werror")
+
+    # HIP flags workaround while target_compile_options does not work
+    list(APPEND HIP_HIPCC_FLAGS "-Wno-unused-command-line-argument -fPIE")
+    list(APPEND CMAKE_HOST_FLAGS "")
+
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+      list(APPEND HIP_HIPCC_FLAGS "-g -ggdb")
+      list(APPEND CMAKE_HOST_FLAGS "-O0;-g")
+    else()
+      list(APPEND HIP_HIPCC_FLAGS "-O3 -march=native -ffp-contract=fast -ffast-math -funsafe-math-optimizations")
+      list(APPEND CMAKE_HOST_FLAGS "-O3;-march=native")
+    endif()
+
+
+    # Availability of rocm_check_target_ids command assures that we can also build
+    # for gfx90a target
+    if(COMMAND rocm_check_target_ids)
+      set(DEFAULT_AMDGPU_TARGETS "gfx900:xnack-;gfx906:xnack-;gfx908:xnack-;gfx908:xnack+;gfx90a:xnack-;gfx90a:xnack+")
+    else()
+      set(DEFAULT_AMDGPU_TARGETS "gfx900;gfx906;gfx908;gfx908")
+    endif()
+    set(TARGETS "${DEFAULT_AMDGPU_TARGETS}" CACHE STRING "List of specific machine types for library to target")
+
+    # AMD targets
+    foreach(target ${TARGETS})
+      list(APPEND HIP_HIPCC_FLAGS "--offload-arch=${target}")
+    endforeach()
+
+    # Target executable
+    hip_add_executable(rochpl ${rochpl_source} ${rochpl_device_source})
+
+    target_compile_options(rochpl PRIVATE ${CMAKE_HOST_FLAGS})
+
+    if(HPL_DEBUG)
+      target_compile_definitions(rochpl PRIVATE HPL_DEBUG)
+    endif()
+
+    if(HPL_VERBOSE_PRINT)
+      target_compile_definitions(rochpl PRIVATE HPL_VERBOSE_PRINT)
+    endif()
+
+    if(HPL_DETAILED_TIMING)
+      target_compile_definitions(rochpl PRIVATE HPL_DETAILED_TIMING)
+    endif()
+
+    if(HPL_PROGRESS_REPORT)
+      target_compile_definitions(rochpl PRIVATE HPL_PROGRESS_REPORT)
+    endif()
+
+    # Target include directories
+    target_include_directories(rochpl
+                               PRIVATE
+                               $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                               $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
+                               $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
+                               $<BUILD_INTERFACE:${HPL_MPI_DIR}/include>
+                               $<BUILD_INTERFACE:${ROCM_PATH}/include/roctracer>)
+
+    #HIP
+    target_link_libraries(rochpl PRIVATE hip::host)
+
+    # MPI
+    target_link_libraries(rochpl PRIVATE MPI::MPI_CXX)
+    target_link_libraries(rochpl PRIVATE ${GTL_LIB})
+
+    # OpenMP
+    target_link_libraries(rochpl PRIVATE OpenMP::OpenMP_CXX)
+
+    # Target link libraries
+    target_link_libraries(rochpl PRIVATE BLAS::BLAS)
+    target_link_libraries(rochpl PRIVATE roc::rocblas)
+    target_link_libraries(rochpl PRIVATE roc::roctracer)
+    target_link_libraries(rochpl PRIVATE roc::roctx)
+
+    # Target properties
+    set_target_properties(rochpl PROPERTIES VERSION ${rochpl_VERSION})
+    set_target_properties(rochpl PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
+    set_target_properties(rochpl PROPERTIES LINKER_LANGUAGE CXX)
+
+    target_link_options(rochpl PRIVATE "-fopenmp")
+
+    set_target_properties(rochpl PROPERTIES HIP_ARCHITECTURES "${DEFAULT_AMDGPU_TARGETS}")
+
+    if(HPL_BUILD_FOR_CRAYPAT)
+        #set(HPL_BUILD_TYPE "craypat")
+        set(ROCHPL_BIN "${CMAKE_INSTALL_PREFIX}/bin/rochpl-${PROJECT_VERSION}+pat")
+        message(STATUS "Will build Craypat executable at ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}+pat")
+        add_custom_command(COMMENT "Building Craypat instrumented executable"
+            OUTPUT "${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}+pat"
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+            COMMAND rm -f rochpl-${PROJECT_VERSION}+pat
+            COMMAND pat_build -g hip,mpi,omp -T _Z10HPL_pdfactP1 -w rochpl-${PROJECT_VERSION}
+            #MAIN_DEPENDENCY ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}
+            DEPENDS rochpl
+            )
+        add_custom_target(rochpl_craypat_exec ALL
+            DEPENDS "${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}+pat")
+    elseif(HPL_BUILD_FOR_OMNITRACE)
+        set(ROCHPL_BIN "${CMAKE_INSTALL_PREFIX}/bin/rochpl-${PROJECT_VERSION}.inst")
+        message(STATUS "Will build Omnitrace inst executable at ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}.inst")
+        add_custom_command(COMMENT "Building OmniTrace instrumented executable"
+            OUTPUT "${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}.inst"
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+            COMMAND rm -f rochpl-${PROJECT_VERSION}.inst
+            COMMAND omnitrace-instrument -o rochpl-${PROJECT_VERSION}.inst -- rochpl-${PROJECT_VERSION}
+            DEPENDS rochpl
+            )
+        add_custom_target(rochpl_omnitrace_exec ALL
+            DEPENDS "${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}.inst")
+    elseif(HPL_BUILD_FOR_ROCPROF)
+        message(WARNING "Building for rocprof trace")
+        set(ROCHPL_BIN "${CMAKE_INSTALL_PREFIX}/bin/rochpl-${PROJECT_VERSION}")
+        add_compile_definitions(HPL_BUILD_FOR_ROCPROF)
+    else()
+        set(ROCHPL_BIN "${CMAKE_INSTALL_PREFIX}/bin/rochpl-${PROJECT_VERSION}")
+    endif()
+
+    # Configure a header file to pass the rocHPL version
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/hpl_version.hpp.in"
+                   "${PROJECT_BINARY_DIR}/include/hpl_version.hpp")
+
+    # Configure run scripts
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_rochpl.in"
+                   "${CMAKE_BINARY_DIR}/run_rochpl"
+                   @ONLY)
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scripts/mpirun_rochpl.in"
+                   "${CMAKE_BINARY_DIR}/mpirun_rochpl"
+                   @ONLY)
+
+    #move input file
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/HPL.dat
+         DESTINATION ${CMAKE_BINARY_DIR})
+
+    # Install targets
+    rocm_install_targets(TARGETS rochpl)
+
+    install(PROGRAMS ${CMAKE_BINARY_DIR}/run_rochpl ${CMAKE_BINARY_DIR}/mpirun_rochpl
+            DESTINATION ${CMAKE_INSTALL_PREFIX})
+    if(HPL_BUILD_FOR_CRAYPAT)
+        install(PROGRAMS ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}+pat
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+    elseif(HPL_BUILD_FOR_OMNITRACE)
+        install(PROGRAMS ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}.inst
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+    endif()
+    install(FILES ${CMAKE_BINARY_DIR}/HPL.dat
+            DESTINATION ${CMAKE_INSTALL_PREFIX})
+
+    # Package specific CPACK vars
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "rocm-dev (>= 3.5.0)")
+    set(CPACK_RPM_PACKAGE_REQUIRES "rocm-dev >= 3.5.0")
+    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+
+    if(NOT CPACK_PACKAGING_INSTALL_PREFIX)
+      set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
+    endif()
+
+    set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "\${CPACK_PACKAGING_INSTALL_PREFIX}" "\${CPACK_PACKAGING_INSTALL_PREFIX}/include")
+
+    # Package name
+    set(package_name rochpl)
+
+    rocm_create_package(
+      NAME ${package_name}
+      DESCRIPTION "Radeon Open Compute HPL application"
+      MAINTAINER "Noel Chalmers")
 endif()
-
-
-# Availability of rocm_check_target_ids command assures that we can also build
-# for gfx90a target
-if(COMMAND rocm_check_target_ids)
-  set(DEFAULT_AMDGPU_TARGETS "gfx900:xnack-;gfx906:xnack-;gfx908:xnack-;gfx908:xnack+;gfx90a:xnack-;gfx90a:xnack+")
-else()
-  set(DEFAULT_AMDGPU_TARGETS "gfx900;gfx906;gfx908;gfx908")
-endif()
-set(TARGETS "${DEFAULT_AMDGPU_TARGETS}" CACHE STRING "List of specific machine types for library to target")
-
-# AMD targets
-foreach(target ${TARGETS})
-  list(APPEND HIP_HIPCC_FLAGS "--offload-arch=${target}")
-endforeach()
-
-# Target executable
-hip_add_executable(rochpl ${rochpl_source} ${rochpl_device_source})
-
-target_compile_options(rochpl PRIVATE ${CMAKE_HOST_FLAGS})
-
-if(HPL_DEBUG)
-  target_compile_definitions(rochpl PRIVATE HPL_DEBUG)
-endif()
-
-if(HPL_VERBOSE_PRINT)
-  target_compile_definitions(rochpl PRIVATE HPL_VERBOSE_PRINT)
-endif()
-
-if(HPL_DETAILED_TIMING)
-  target_compile_definitions(rochpl PRIVATE HPL_DETAILED_TIMING)
-endif()
-
-if(HPL_PROGRESS_REPORT)
-  target_compile_definitions(rochpl PRIVATE HPL_PROGRESS_REPORT)
-endif()
-
-# Target include directories
-target_include_directories(rochpl
-                           PRIVATE
-                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                           $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
-                           $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
-                           $<BUILD_INTERFACE:${HPL_MPI_DIR}/include>
-                           $<BUILD_INTERFACE:${ROCM_PATH}/include/roctracer>)
-
-#HIP
-target_link_libraries(rochpl PRIVATE hip::host)
-
-# MPI
-target_link_libraries(rochpl PRIVATE MPI::MPI_CXX)
-target_link_libraries(rochpl PRIVATE ${GTL_LIB})
-
-# OpenMP
-target_link_libraries(rochpl PRIVATE OpenMP::OpenMP_CXX)
-
-# Target link libraries
-target_link_libraries(rochpl PRIVATE BLAS::BLAS)
-target_link_libraries(rochpl PRIVATE roc::rocblas)
-target_link_libraries(rochpl PRIVATE roc::roctracer)
-target_link_libraries(rochpl PRIVATE roc::roctx)
-
-# Target properties
-set_target_properties(rochpl PROPERTIES VERSION ${rochpl_VERSION})
-set_target_properties(rochpl PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-
-set_target_properties(rochpl PROPERTIES LINKER_LANGUAGE CXX)
-
-target_link_options(rochpl PRIVATE "-fopenmp")
-
-set_target_properties(rochpl PROPERTIES HIP_ARCHITECTURES "${DEFAULT_AMDGPU_TARGETS}")
-
-if(HPL_BUILD_FOR_CRAYPAT)
-    #set(HPL_BUILD_TYPE "craypat")
-    set(ROCHPL_BIN "${CMAKE_INSTALL_PREFIX}/bin/rochpl-${PROJECT_VERSION}+pat")
-    message(STATUS "Will build Craypat executable at ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}+pat")
-    add_custom_command(COMMENT "Building Craypat instrumented executable"
-        OUTPUT "${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}+pat"
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-        COMMAND rm -f rochpl-${PROJECT_VERSION}+pat
-        COMMAND pat_build -g hip,mpi,omp -T _Z10HPL_pdfactP1 -w rochpl-${PROJECT_VERSION}
-        #MAIN_DEPENDENCY ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}
-        DEPENDS rochpl
-        )
-    add_custom_target(rochpl_craypat_exec ALL
-        DEPENDS "${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}+pat")
-elseif(HPL_BUILD_FOR_OMNITRACE)
-    set(ROCHPL_BIN "${CMAKE_INSTALL_PREFIX}/bin/rochpl-${PROJECT_VERSION}.inst")
-    message(STATUS "Will build Omnitrace inst executable at ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}.inst")
-    add_custom_command(COMMENT "Building OmniTrace instrumented executable"
-        OUTPUT "${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}.inst"
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-        COMMAND rm -f rochpl-${PROJECT_VERSION}.inst
-        COMMAND omnitrace-instrument -o rochpl-${PROJECT_VERSION}.inst -- rochpl-${PROJECT_VERSION}
-        DEPENDS rochpl
-        )
-    add_custom_target(rochpl_omnitrace_exec ALL
-        DEPENDS "${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}.inst")
-elseif(HPL_BUILD_FOR_ROCPROF)
-    message(WARNING "Building for rocprof trace")
-    set(ROCHPL_BIN "${CMAKE_INSTALL_PREFIX}/bin/rochpl-${PROJECT_VERSION}")
-    add_compile_definitions(HPL_BUILD_FOR_ROCPROF)
-else()
-    set(ROCHPL_BIN "${CMAKE_INSTALL_PREFIX}/bin/rochpl-${PROJECT_VERSION}")
-endif()
-
-# Configure a header file to pass the rocHPL version
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/hpl_version.hpp.in"
-               "${PROJECT_BINARY_DIR}/include/hpl_version.hpp")
-
-# Configure run scripts
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_rochpl.in"
-               "${CMAKE_BINARY_DIR}/run_rochpl"
-               @ONLY)
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scripts/mpirun_rochpl.in"
-               "${CMAKE_BINARY_DIR}/mpirun_rochpl"
-               @ONLY)
-
-#move input file
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/HPL.dat
-     DESTINATION ${CMAKE_BINARY_DIR})
-
-# Install targets
-rocm_install_targets(TARGETS rochpl)
-
-install(PROGRAMS ${CMAKE_BINARY_DIR}/run_rochpl ${CMAKE_BINARY_DIR}/mpirun_rochpl
-        DESTINATION ${CMAKE_INSTALL_PREFIX})
-if(HPL_BUILD_FOR_CRAYPAT)
-    install(PROGRAMS ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}+pat
-            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
-elseif(HPL_BUILD_FOR_OMNITRACE)
-    install(PROGRAMS ${CMAKE_BINARY_DIR}/bin/rochpl-${PROJECT_VERSION}.inst
-            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
-endif()
-install(FILES ${CMAKE_BINARY_DIR}/HPL.dat
-        DESTINATION ${CMAKE_INSTALL_PREFIX})
-
-# Package specific CPACK vars
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "rocm-dev (>= 3.5.0)")
-set(CPACK_RPM_PACKAGE_REQUIRES "rocm-dev >= 3.5.0")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
-
-if(NOT CPACK_PACKAGING_INSTALL_PREFIX)
-  set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
-endif()
-
-set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION "\${CPACK_PACKAGING_INSTALL_PREFIX}" "\${CPACK_PACKAGING_INSTALL_PREFIX}/include")
-
-# Package name
-set(package_name rochpl)
-
-rocm_create_package(
-  NAME ${package_name}
-  DESCRIPTION "Radeon Open Compute HPL application"
-  MAINTAINER "Noel Chalmers")
