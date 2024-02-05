@@ -15,6 +15,7 @@
  */
 
 #include <limits>
+#include <ctime>
 
 #ifdef CRAYPAT
 #include "pat_api.h"

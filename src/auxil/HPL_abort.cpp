@@ -13,6 +13,8 @@
  *    SPDX-License-Identifier: (BSD-3-Clause)
  * ---------------------------------------------------------------------
  */
+#include <cstdlib>
+#include <cstdarg>
 
 #include "hpl.hpp"
 

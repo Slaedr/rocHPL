@@ -14,6 +14,7 @@
  * ---------------------------------------------------------------------
  */
 
+#include <cstdlib>
 #include "hpl.hpp"
 
 void HPL_pdpanel_new(HPL_T_grid*   GRID,

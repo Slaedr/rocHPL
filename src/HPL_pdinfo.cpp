@@ -17,6 +17,7 @@
 #include "hpl.hpp"
 #include <iostream>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <cctype>
 #include <algorithm>

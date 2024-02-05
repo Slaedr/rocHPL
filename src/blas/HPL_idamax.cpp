@@ -13,6 +13,7 @@
  *    SPDX-License-Identifier: (BSD-3-Clause)
  * ---------------------------------------------------------------------
  */
+#include <cmath>
 #include "hpl.hpp"
 
 void HPL_idamax_omp(const int     N,

@@ -13,7 +13,7 @@
  *    SPDX-License-Identifier: (BSD-3-Clause)
  * ---------------------------------------------------------------------
  */
-
+#include <cstdlib>
 #include "hpl.hpp"
 
 double HPL_dlange(const HPL_T_NORM NORM,

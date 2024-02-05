@@ -14,6 +14,7 @@
  * ---------------------------------------------------------------------
  */
 
+#include <cstdarg>
 #include "hpl.hpp"
 
 void HPL_warn(FILE*       STREAM,

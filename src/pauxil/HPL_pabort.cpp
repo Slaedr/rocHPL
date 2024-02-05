@@ -13,7 +13,8 @@
  *    SPDX-License-Identifier: (BSD-3-Clause)
  * ---------------------------------------------------------------------
  */
-
+#include <cstdarg>
+#include <cstdlib>
 #include "hpl.hpp"
 
 void HPL_pabort(int LINE, const char* SRNAME, const char* FORM, ...) {

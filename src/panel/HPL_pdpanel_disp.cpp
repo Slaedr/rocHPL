@@ -13,7 +13,7 @@
  *    SPDX-License-Identifier: (BSD-3-Clause)
  * ---------------------------------------------------------------------
  */
-
+#include <cstdlib>
 #include "hpl.hpp"
 
 int HPL_pdpanel_disp(HPL_T_panel** PANEL) {
