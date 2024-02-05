@@ -15,7 +15,9 @@
  */
 
 #include "hpl.hpp"
+#ifndef HPL_BUILD_WITHOUT_HIP
 #include "hpl_hip.hpp"
+#endif
 
 int HPL_allgatherv(double*    BUF,
                    const int  SCOUNT,
@@ -60,7 +62,9 @@ int HPL_allgatherv(double*    BUF,
    * ---------------------------------------------------------------------
    */
 
+#ifndef HPL_BUILD_WITHOUT_HIP
   roctxRangePush("HPL_Allgatherv");
+#endif
 
   int ierr = MPI_SUCCESS;
 
@@ -124,7 +128,9 @@ int HPL_allgatherv(double*    BUF,
 
   }
 
+#ifndef HPL_BUILD_WITHOUT_HIP
   roctxRangePop();
+#endif
 
   return ((ierr == MPI_SUCCESS ? HPL_SUCCESS : HPL_FAILURE));
 }

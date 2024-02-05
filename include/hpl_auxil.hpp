@@ -20,6 +20,7 @@
  * Include files
  * ---------------------------------------------------------------------
  */
+#include <cstdio>
 #include "hpl_misc.hpp"
 #include "hpl_blas.hpp"
 /*
@@ -83,6 +84,8 @@ double HPL_dlange(const HPL_T_NORM,
                   const int);
 
 double HPL_dlamch(const HPL_T_MACH);
+
+int HPL_malloc(void** ptr, size_t bytes);
 
 #endif
 /*

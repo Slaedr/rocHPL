@@ -15,17 +15,6 @@
  */
 #ifndef HPL_MISC_HPP
 #define HPL_MISC_HPP
-/*
- * ---------------------------------------------------------------------
- * Include files
- * ---------------------------------------------------------------------
- */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <stdarg.h>
 
 /*
  * ---------------------------------------------------------------------
@@ -35,6 +24,8 @@
 #define HPL_rone 1.0
 #define HPL_rtwo 2.0
 #define HPL_rzero 0.0
+#define HPL_FAILURE 0
+#define HPL_SUCCESS 1
 /*
  * ---------------------------------------------------------------------
  * #define macros definitions

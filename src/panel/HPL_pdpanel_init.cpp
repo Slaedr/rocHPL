@@ -16,23 +16,6 @@
 
 #include "hpl.hpp"
 #include "hpl_hip.hpp"
-#include <unistd.h>
-
-static int Malloc(HPL_T_grid* GRID, void** ptr, const size_t bytes) {
-
-  int mycol, myrow, npcol, nprow;
-  (void)HPL_grid_info(GRID, &nprow, &npcol, &myrow, &mycol);
-
-  unsigned long pg_size = sysconf(_SC_PAGESIZE);
-  int           err     = posix_memalign(ptr, pg_size, bytes);
-
-  /*Check workspace allocation is valid*/
-  if(err != 0) {
-    return HPL_FAILURE;
-  } else {
-    return HPL_SUCCESS;
-  }
-}
 
 static int hostMalloc(HPL_T_grid* GRID, void** ptr, const size_t bytes) {
 
@@ -450,7 +433,7 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
     if(PANEL->IWORK) { free(PANEL->IWORK); }
     size_t numbytes = (size_t)(lwork) * sizeof(int);
 
-    if(Malloc(GRID, (void**)&(PANEL->IWORK), numbytes) != HPL_SUCCESS) {
+    if(HPL_malloc(GRID, (void**)&(PANEL->IWORK), numbytes) != HPL_SUCCESS) {
       HPL_pabort(__LINE__,
                  "HPL_pdpanel_init",
                  "Host memory allocation failed for integer workspace.");
@@ -466,7 +449,7 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
     if(PANEL->fWORK) { free(PANEL->fWORK); }
     size_t numbytes = (size_t)(lwork) * sizeof(double);
 
-    if(Malloc(GRID, (void**)&(PANEL->fWORK), numbytes) != HPL_SUCCESS) {
+    if(HPL_malloc(GRID, (void**)&(PANEL->fWORK), numbytes) != HPL_SUCCESS) {
       HPL_pabort(__LINE__,
                  "HPL_pdpanel_init",
                  "Host memory allocation failed for pdfact scratch workspace.");

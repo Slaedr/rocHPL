@@ -15,7 +15,9 @@
  */
 
 #include "hpl.hpp"
+#ifndef HPL_BUILD_WITHOUT_HIP
 #include "hpl_hip.hpp"
+#endif
 
 int HPL_bcast(double*   SBUF,
               int       SCOUNT,
@@ -57,7 +59,9 @@ int HPL_bcast(double*   SBUF,
 
   int ierr;
 
+#ifndef HPL_BUILD_WITHOUT_HIP
   roctxRangePush("HPL_Bcast");
+#endif
 
   if(impl_type == HPL_COMM_COLLECTIVE) {
       ierr = MPI_Bcast(SBUF, SCOUNT, MPI_DOUBLE, ROOT, COMM);
@@ -74,7 +78,9 @@ int HPL_bcast(double*   SBUF,
     }
   }
 
+#ifndef HPL_BUILD_WITHOUT_HIP
   roctxRangePop();
+#endif
 
   return ((ierr == MPI_SUCCESS ? HPL_SUCCESS : HPL_FAILURE));
 }

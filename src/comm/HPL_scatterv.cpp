@@ -15,7 +15,10 @@
  */
 
 #include "hpl.hpp"
+
+#ifndef HPL_BUILD_WITHOUT_HIP
 #include "hpl_hip.hpp"
+#endif
 
 int HPL_scatterv(double*    BUF,
                  const int* SCOUNT,
@@ -69,7 +72,9 @@ int HPL_scatterv(double*    BUF,
   int rank, ierr = MPI_SUCCESS;
   MPI_Comm_rank(COMM, &rank);
 
+#ifndef HPL_BUILD_WITHOUT_HIP
   roctxRangePush("HPL_Scatterv");
+#endif
 
   if(impl_type == HPL_COMM_COLLECTIVE) {
       if(rank == ROOT) {
@@ -118,7 +123,9 @@ int HPL_scatterv(double*    BUF,
       }
   }
 
+#ifndef HPL_BUILD_WITHOUT_HIP
   roctxRangePop();
+#endif
 
   return ((ierr == MPI_SUCCESS ? HPL_SUCCESS : HPL_FAILURE));
 }
