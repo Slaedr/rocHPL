@@ -96,14 +96,16 @@ if(HPL_BUILD_WITHOUT_HIP)
     target_include_directories(rochpl_host
         PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
-        PUBLIC $<BUILD_INTERFACE:${HPL_MPI_DIR}/include>)
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>)
     target_link_libraries(rochpl_host PUBLIC MPI::MPI_CXX)
     target_link_libraries(rochpl_host PRIVATE OpenMP::OpenMP_CXX)
     target_link_libraries(rochpl_host PRIVATE BLAS::BLAS)
     # Configure a header file to pass the rocHPL version
     configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/hpl_version.hpp.in"
                    "${PROJECT_BINARY_DIR}/include/hpl_version.hpp")
+    if(HPL_BUILD_TESTS)
+        add_subdirectory(test)
+    endif()
 else()
     # Setup version
     rocm_setup_version(VERSION 6.0.0)
