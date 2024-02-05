@@ -17,11 +17,7 @@
 #include "hpl.hpp"
 #include "hpl_hip.hpp"
 
-static int hostMalloc(HPL_T_grid* GRID, void** ptr, const size_t bytes) {
-
-  int mycol, myrow, npcol, nprow;
-  (void)HPL_grid_info(GRID, &nprow, &npcol, &myrow, &mycol);
-
+static int hostMalloc(void** ptr, const size_t bytes) {
   hipError_t err = hipHostMalloc(ptr, bytes);
 
   /*Check workspace allocation is valid*/
@@ -32,11 +28,7 @@ static int hostMalloc(HPL_T_grid* GRID, void** ptr, const size_t bytes) {
   }
 }
 
-static int deviceMalloc(HPL_T_grid* GRID, void** ptr, const size_t bytes) {
-
-  int mycol, myrow, npcol, nprow;
-  (void)HPL_grid_info(GRID, &nprow, &npcol, &myrow, &mycol);
-
+static int deviceMalloc(void** ptr, const size_t bytes) {
   hipError_t err = hipMalloc(ptr, bytes);
 
   /*Check workspace allocation is valid*/
@@ -268,12 +260,12 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
     // (size_t)4095)/(size_t)4096)*(size_t)4096;
     size_t numbytes = (size_t)(lwork) * sizeof(double);
 
-    if(deviceMalloc(GRID, (void**)&(PANEL->dLWORK), numbytes) != HPL_SUCCESS) {
+    if(deviceMalloc((void**)&(PANEL->dLWORK), numbytes) != HPL_SUCCESS) {
       HPL_pabort(__LINE__,
                  "HPL_pdpanel_init",
                  "Device memory allocation failed for L workspace.");
     }
-    if(hostMalloc(GRID, (void**)&(PANEL->LWORK), numbytes) != HPL_SUCCESS) {
+    if(hostMalloc((void**)&(PANEL->LWORK), numbytes) != HPL_SUCCESS) {
       HPL_pabort(__LINE__,
                  "HPL_pdpanel_init",
                  "Host memory allocation failed for L workspace.");
@@ -290,12 +282,12 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
     // (size_t)4095)/(size_t)4096)*(size_t)4096;
     size_t numbytes = (size_t)(uwork) * sizeof(double);
 
-    if(deviceMalloc(GRID, (void**)&(PANEL->dUWORK), numbytes) != HPL_SUCCESS) {
+    if(deviceMalloc((void**)&(PANEL->dUWORK), numbytes) != HPL_SUCCESS) {
       HPL_pabort(__LINE__,
                  "HPL_pdpanel_init",
                  "Device memory allocation failed for U workspace.");
     }
-    if(hostMalloc(GRID, (void**)&(PANEL->UWORK), numbytes) != HPL_SUCCESS) {
+    if(hostMalloc((void**)&(PANEL->UWORK), numbytes) != HPL_SUCCESS) {
       HPL_pabort(__LINE__,
                  "HPL_pdpanel_init",
                  "Host memory allocation failed for U workspace.");
@@ -433,7 +425,7 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
     if(PANEL->IWORK) { free(PANEL->IWORK); }
     size_t numbytes = (size_t)(lwork) * sizeof(int);
 
-    if(HPL_malloc(GRID, (void**)&(PANEL->IWORK), numbytes) != HPL_SUCCESS) {
+    if(HPL_malloc((void**)&(PANEL->IWORK), numbytes) != HPL_SUCCESS) {
       HPL_pabort(__LINE__,
                  "HPL_pdpanel_init",
                  "Host memory allocation failed for integer workspace.");
@@ -449,7 +441,7 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
     if(PANEL->fWORK) { free(PANEL->fWORK); }
     size_t numbytes = (size_t)(lwork) * sizeof(double);
 
-    if(HPL_malloc(GRID, (void**)&(PANEL->fWORK), numbytes) != HPL_SUCCESS) {
+    if(HPL_malloc((void**)&(PANEL->fWORK), numbytes) != HPL_SUCCESS) {
       HPL_pabort(__LINE__,
                  "HPL_pdpanel_init",
                  "Host memory allocation failed for pdfact scratch workspace.");
