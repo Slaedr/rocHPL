@@ -16,6 +16,7 @@
 #ifndef HPL_PTEST_HPP
 #define HPL_PTEST_HPP
 
+#include <cstdlib>
 #include <vector>
 
 /*
@@ -23,17 +24,9 @@
  * Include files
  * ---------------------------------------------------------------------
  */
-#include "hpl_misc.hpp"
-#include "hpl_blas.hpp"
-#include "hpl_auxil.hpp"
-
 #include "hpl_pmisc.hpp"
-#include "hpl_pauxil.hpp"
-#include "hpl_panel.hpp"
-#include "hpl_pgesv.hpp"
-
-#include "hpl_ptimer.hpp"
-#include "hpl_pmatgen.hpp"
+#include "hpl_grid.hpp"
+#include "hpl_pgesv_types.hpp"
 
 /*
  * ---------------------------------------------------------------------

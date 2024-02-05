@@ -73,7 +73,7 @@ void HPL_pdmxswp(HPL_T_panel* PANEL,
    */
 
   double *    A0, *Wmx, *Wwork;
-  HPL_T_grid* grid;
+  const HPL_T_grid* grid;
   MPI_Comm    comm;
   int         cnt_, cnt0, i, icurrow, lda, myrow, n0;
 

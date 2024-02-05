@@ -3,7 +3,9 @@
 
 #include "hpl_misc.hpp"
 #include "hpl_comm.hpp"
-#include "hpl_panel.hpp"
+
+// Forward declaration for use in panel factorization type signatures below
+struct HPL_T_panel;
 
 /*
  * ---------------------------------------------------------------------

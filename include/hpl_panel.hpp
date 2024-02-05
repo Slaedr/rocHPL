@@ -23,16 +23,17 @@
  */
 #include "hpl_pmisc.hpp"
 #include "hpl_grid.hpp"
+#include "hpl_pgesv_types.hpp"
 
 /*
  * ---------------------------------------------------------------------
  * Data Structures
  * ---------------------------------------------------------------------
  */
-typedef struct HPL_S_panel {
-  struct HPL_S_grid* grid;   /* ptr to the process grid */
-  struct HPL_S_palg* algo;   /* ptr to the algo parameters */
-  struct HPL_S_pmat* pmat;   /* ptr to the local array info */
+struct HPL_T_panel {
+  const HPL_T_grid* grid;   /* ptr to the process grid */
+  const HPL_T_palg* algo;   /* ptr to the algo parameters */
+  HPL_T_pmat* pmat;   /* ptr to the local array info */
   double*            A;      /* ptr to trailing part of A */
   double*            dA;     /* ptr to trailing part of A */
   double*            LWORK;  /* L work space */
@@ -104,14 +105,13 @@ typedef struct HPL_S_panel {
   unsigned int       max_iwork_size;       /* largest size of IWORK space */
   unsigned int       max_fwork_size;       /* largest size of fWORK space */
   unsigned int       free_work_now;        /* should we deallocate */
-} HPL_T_panel;
+};
 
 /*
  * ---------------------------------------------------------------------
  * panel function prototypes
  * ---------------------------------------------------------------------
  */
-#include "hpl_pgesv_types.hpp"
 
 void HPL_pdpanel_new(HPL_T_grid*,
                      HPL_T_palg*,
