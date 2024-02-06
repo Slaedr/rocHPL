@@ -99,12 +99,13 @@ struct HPL_T_panel {
   int                ldl2;       /* local leading dim of array L2 */
   int                dldl2;      /* local leading dim of array L2 */
   int                len;        /* length of the buffer to broadcast */
-  unsigned int       max_pinned_work_size; /* largest size of pinned A space */
-  unsigned int       max_lwork_size;       /* largest size of WORK space */
-  unsigned int       max_uwork_size;       /* largest size of WORK space */
-  unsigned int       max_iwork_size;       /* largest size of IWORK space */
-  unsigned int       max_fwork_size;       /* largest size of fWORK space */
-  unsigned int       free_work_now;        /* should we deallocate */
+  // TODO: Change these to size_t to avoid type mismatch (see HPL_pdpanel_init)
+  size_t       max_pinned_work_size; /* largest size of pinned A space */
+  size_t       max_lwork_size;       /* largest size of WORK space */
+  size_t       max_uwork_size;       /* largest size of WORK space */
+  size_t       max_iwork_size;       /* largest size of IWORK space */
+  size_t       max_fwork_size;       /* largest size of fWORK space */
+  size_t       free_work_now;        /* should we deallocate */
 };
 
 /*
@@ -141,6 +142,44 @@ void HPL_pdpanel_SendToHost(HPL_T_panel*);
 void HPL_pdpanel_SendToDevice(HPL_T_panel*);
 void HPL_pdpanel_Wait(HPL_T_panel* PANEL);
 int  HPL_pdpanel_bcast(HPL_T_panel*);
+
+// Helper functions
+
+/// Get number or rows in the L2 factor matrix
+int get_num_rows_L2(int npcol, int myrow, int current_prow,
+                    int panel_ncols, int local_nrows);
+
+/** \brief Get length of workspace for storing indices.
+ *
+ * If nprow is 1, we just allocate an array of JB (panel_ncols) integers to store the
+ * pivot IDs during factoring, and a scratch array of mp integers.
+ * When nprow > 1, we allocate the space for the index arrays immediate-
+ * ly. The exact size of this array depends on the swapping routine that
+ * will be used, so we allocate the maximum:
+ *
+ *    IWORK[0] is of size at most 1      +
+ *    IPL      is of size at most 1      +
+ *    IPID     is of size at most 4 * JB +
+ *    IPIV     is of size at most JB     +
+ *    SCRATCH  is of size at most MP
+ *
+ *    ipA      is of size at most 1      +
+ *    iplen    is of size at most NPROW  + 1 +
+ *    ipcounts is of size at most NPROW  +
+ *    ioffsets is of size at most NPROW  +
+ *    iwork    is of size at most MAX( 2*JB, NPROW+1 ).
+ *
+ * that is  mp + 4 + 5*JB + 3*NPROW + MAX( 2*JB, NPROW+1 ).
+ *
+ * We use the fist entry of this to work array  to indicate  whether the
+ * the  local  index arrays have already been computed,  and if yes,  by
+ * which function:
+ *    IWORK[0] = -1: no index arrays have been computed so far;
+ *    IWORK[0] =  1: HPL_pdlaswp already computed those arrays;
+ * This allows to save some redundant and useless computations.
+ */
+int get_index_workspace_len(int nprow, int panel_ncols, int local_nrows);
+
 #endif
 /*
  * End of hpl_panel.hpp

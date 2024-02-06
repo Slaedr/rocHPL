@@ -39,6 +39,62 @@ static int deviceMalloc(void** ptr, const size_t bytes) {
   }
 }
 
+int get_num_rows_L2(const int npcol, const int myrow, const int current_prow,
+        const int panel_ncols, const int local_nrows)
+{
+    int ml2 = 0;
+    if(npcol > 1) {
+        ml2 = (myrow == current_prow ? local_nrows - panel_ncols : local_nrows);
+        ml2 = Mmax(0, ml2);
+        ml2 = ((ml2 + 95) / 128) * 128 + 32; /*pad*/
+    } else {
+        ml2 = 0; // L2 is aliased inside A
+    }
+    return ml2;
+}
+
+int get_index_workspace_len(const int nprow, const int panel_ncols, const int local_nrows)
+{
+    /*
+     * If nprow is 1, we just allocate an array of JB (panel_ncols) integers to store the
+     * pivot IDs during factoring, and a scratch array of mp integers.
+     * When nprow > 1, we allocate the space for the index arrays immediate-
+     * ly. The exact size of this array depends on the swapping routine that
+     * will be used, so we allocate the maximum:
+     *
+     *    IWORK[0] is of size at most 1      +
+     *    IPL      is of size at most 1      +
+     *    IPID     is of size at most 4 * JB +
+     *    IPIV     is of size at most JB     +
+     *    SCRATCH  is of size at most MP
+     *
+     *    ipA      is of size at most 1      +
+     *    iplen    is of size at most NPROW  + 1 +
+     *    ipcounts is of size at most NPROW  +
+     *    ioffsets is of size at most NPROW  +
+     *    iwork    is of size at most MAX( 2*JB, NPROW+1 ).
+     *
+     * that is  mp + 4 + 5*JB + 3*NPROW + MAX( 2*JB, NPROW+1 ).
+     *
+     * We use the fist entry of this to work array  to indicate  whether the
+     * the  local  index arrays have already been computed,  and if yes,  by
+     * which function:
+     *    IWORK[0] = -1: no index arrays have been computed so far;
+     *    IWORK[0] =  1: HPL_pdlaswp already computed those arrays;
+     * This allows to save some redundant and useless computations.
+     */
+    int lwork = 0;
+    if(nprow == 1) {
+        lwork = local_nrows + panel_ncols;
+    } else {
+        int itmp1 = (panel_ncols << 1);
+        lwork = nprow + 1;
+        itmp1 = Mmax(itmp1, lwork);
+        lwork = local_nrows + 4 + (5 * panel_ncols) + (3 * nprow) + itmp1;
+    }
+    return lwork;
+}
+
 void HPL_pdpanel_init(HPL_T_grid*  GRID,
                       HPL_T_palg*  ALGO,
                       const int    M,
@@ -101,19 +157,17 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
    * ---------------------------------------------------------------------
    */
 
-  size_t dalign;
-  int icurcol, icurrow, ii, itmp1, jj, lwork, uwork, ml2, mp, mycol, myrow, nb,
-      npcol, nprow, nq, nu, ldu;
+  int icurcol, icurrow, ii, itmp1, jj;
 
   PANEL->grid = GRID; /* ptr to the process grid */
   PANEL->algo = ALGO; /* ptr to the algo parameters */
   PANEL->pmat = A;    /* ptr to the local array info */
 
-  myrow = GRID->myrow;
-  mycol = GRID->mycol;
-  nprow = GRID->nprow;
-  npcol = GRID->npcol;
-  nb    = A->nb;
+  const int myrow = GRID->myrow;
+  const int mycol = GRID->mycol;
+  const int nprow = GRID->nprow;
+  const int npcol = GRID->npcol;
+  const int nb    = A->nb;
 
   HPL_infog2l(IA,
               JA,
@@ -131,8 +185,8 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
               &jj,
               &icurrow,
               &icurcol);
-  mp = HPL_numrocI(M, IA, nb, nb, myrow, 0, nprow);
-  nq = HPL_numrocI(N, JA, nb, nb, mycol, 0, npcol);
+  const int mp = HPL_numrocI(M, IA, nb, nb, myrow, 0, nprow);
+  const int nq = HPL_numrocI(N, JA, nb, nb, mycol, 0, npcol);
 
   const int inxtcol = MModAdd1(icurcol, npcol);
   const int inxtrow = MModAdd1(icurrow, nprow);
@@ -228,28 +282,21 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
   /*Split fraction*/
   const double fraction = ALGO->frac;
 
-  dalign      = ALGO->align * sizeof(double);
-  size_t lpiv = (5 * JB * sizeof(int) + sizeof(double) - 1) / (sizeof(double));
+  const size_t lpiv = (5 * JB * sizeof(int) + sizeof(double) - 1) / (sizeof(double));
 
-  if(npcol > 1) {
-    ml2 = (myrow == icurrow ? mp - JB : mp);
-    ml2 = Mmax(0, ml2);
-    ml2 = ((ml2 + 95) / 128) * 128 + 32; /*pad*/
-  } else {
-    ml2 = 0; // L2 is aliased inside A
-  }
+  const int ml2 = get_num_rows_L2(npcol, myrow, icurrow, JB, mp);
 
   /* Size of LBcast message */
   PANEL->len = ml2 * JB + JB * JB + lpiv; // L2, L1, integer arrays
 
   /* space for L */
-  lwork = PANEL->len + 1;
+  const int lwork = PANEL->len + 1;
 
-  nu  = Mmax(0, (mycol == icurcol ? nq - JB : nq));
-  ldu = nu + JB + 256; /*extra space for potential padding*/
+  const int nu  = Mmax(0, (mycol == icurcol ? nq - JB : nq));
+  const int ldu = nu + JB + 256; /*extra space for potential padding*/
 
   /* space for U */
-  uwork = JB * ldu;
+  const int uwork = JB * ldu;
 
   if(PANEL->max_lwork_size < (size_t)(lwork) * sizeof(double)) {
     if(PANEL->LWORK) {
@@ -384,68 +431,37 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
 
   *(PANEL->DINFO) = 0.0;
 
-  /*
-   * If nprow is 1, we just allocate an array of JB integers to store the
-   * pivot IDs during factoring, and a scratch array of mp integers.
-   * When nprow > 1, we allocate the space for the index arrays immediate-
-   * ly. The exact size of this array depends on the swapping routine that
-   * will be used, so we allocate the maximum:
-   *
-   *    IWORK[0] is of size at most 1      +
-   *    IPL      is of size at most 1      +
-   *    IPID     is of size at most 4 * JB +
-   *    IPIV     is of size at most JB     +
-   *    SCRATCH  is of size at most MP
-   *
-   *    ipA      is of size at most 1      +
-   *    iplen    is of size at most NPROW  + 1 +
-   *    ipcounts is of size at most NPROW  +
-   *    ioffsets is of size at most NPROW  +
-   *    iwork    is of size at most MAX( 2*JB, NPROW+1 ).
-   *
-   * that is  mp + 4 + 5*JB + 3*NPROW + MAX( 2*JB, NPROW+1 ).
-   *
-   * We use the fist entry of this to work array  to indicate  whether the
-   * the  local  index arrays have already been computed,  and if yes,  by
-   * which function:
-   *    IWORK[0] = -1: no index arrays have been computed so far;
-   *    IWORK[0] =  1: HPL_pdlaswp already computed those arrays;
-   * This allows to save some redundant and useless computations.
-   */
-  if(nprow == 1) {
-    lwork = mp + JB;
-  } else {
-    itmp1 = (JB << 1);
-    lwork = nprow + 1;
-    itmp1 = Mmax(itmp1, lwork);
-    lwork = mp + 4 + (5 * JB) + (3 * nprow) + itmp1;
-  }
+  const int liwork = get_index_workspace_len(nprow, JB, mp);
 
-  if(PANEL->max_iwork_size < (size_t)(lwork) * sizeof(int)) {
-    if(PANEL->IWORK) { free(PANEL->IWORK); }
-    size_t numbytes = (size_t)(lwork) * sizeof(int);
+  if(PANEL->max_iwork_size < (size_t)(liwork) * sizeof(int)) {
+    if(PANEL->IWORK) {
+        free(PANEL->IWORK);
+    }
+    const size_t numbytes = (size_t)(liwork) * sizeof(int);
 
     if(HPL_malloc((void**)&(PANEL->IWORK), numbytes) != HPL_SUCCESS) {
       HPL_pabort(__LINE__,
                  "HPL_pdpanel_init",
                  "Host memory allocation failed for integer workspace.");
     }
-    PANEL->max_iwork_size = (size_t)(lwork) * sizeof(int);
+    PANEL->max_iwork_size = (size_t)(liwork) * sizeof(int);
   }
 
   if(lwork) *(PANEL->IWORK) = -1;
 
   /*Finally, we need 4 + 4*JB entries of scratch for pdfact */
-  lwork = (size_t)(((4 + ((unsigned int)(JB) << 1)) << 1));
-  if(PANEL->max_fwork_size < (size_t)(lwork) * sizeof(double)) {
-    if(PANEL->fWORK) { free(PANEL->fWORK); }
-    size_t numbytes = (size_t)(lwork) * sizeof(double);
+  const size_t lfwork = (size_t)(((4 + ((unsigned int)(JB) << 1)) << 1));
+  if(PANEL->max_fwork_size < lfwork * sizeof(double)) {
+    if(PANEL->fWORK) {
+        free(PANEL->fWORK);
+    }
+    const size_t numbytes = lfwork * sizeof(double);
 
     if(HPL_malloc((void**)&(PANEL->fWORK), numbytes) != HPL_SUCCESS) {
       HPL_pabort(__LINE__,
                  "HPL_pdpanel_init",
                  "Host memory allocation failed for pdfact scratch workspace.");
     }
-    PANEL->max_fwork_size = (size_t)(lwork) * sizeof(double);
+    PANEL->max_fwork_size = lfwork * sizeof(double);
   }
 }
