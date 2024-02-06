@@ -231,7 +231,7 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
   //const int ml2 = get_num_rows_L2(npcol, myrow, icurrow, JB, mp);
 
   ///* Size of LBcast message */
-  //PANEL->len = ml2 * JB + JB * JB + lpiv; // L2, L1, integer arrays
+  ////PANEL->len = ml2 * JB + JB * JB + lpiv; // L2, L1, integer arrays
 
   ///* space for L */
   //const int lwork = PANEL->len + 1;
@@ -245,6 +245,12 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
   const HPL_panel_sizes psz = get_panel_sizes(A, M, N, JB, IA, JA, PANEL);
   /* Size of LBcast message */
   PANEL->len = psz.len_lbcast;
+  //psz.lwork = lwork;
+  //psz.uwork = uwork;
+  //psz.ml2 = ml2;
+  //psz.nu = nu;
+  //psz.ldu = ldu;
+  //psz.lpiv = lpiv;
 
   if(PANEL->max_lwork_size < (size_t)(psz.lwork) * sizeof(double)) {
     if(PANEL->LWORK) {
@@ -297,6 +303,7 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
   *(PANEL->DINFO) = 0.0;
 
   //const int liwork = get_index_workspace_len(nprow, JB, mp);
+  //psz.l_i_work = (size_t)get_index_workspace_len(nprow, JB, mp);
 
   if(PANEL->max_iwork_size < psz.l_i_work * sizeof(int)) {
     if(PANEL->IWORK) {
@@ -318,6 +325,7 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
 
   /*Finally, we need 4 + 4*JB entries of scratch for pdfact */
   //const size_t lfwork = (size_t)(((4 + ((unsigned int)(JB) << 1)) << 1));
+  //psz.l_f_work = (size_t)(((4 + ((unsigned int)(JB) << 1)) << 1));
   if(PANEL->max_fwork_size < psz.l_f_work * sizeof(double)) {
     if(PANEL->fWORK) {
         free(PANEL->fWORK);

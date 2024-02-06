@@ -21,6 +21,8 @@
  * Include files
  * ---------------------------------------------------------------------
  */
+#include <cstddef>
+
 #include "hpl_pmisc.hpp"
 #include "hpl_grid.hpp"
 #include "hpl_pgesv_types.hpp"

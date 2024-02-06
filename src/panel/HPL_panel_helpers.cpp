@@ -93,7 +93,7 @@ HPL_panel_sizes get_panel_sizes(HPL_T_pmat *A, const int M, const int N, const i
     psz.lpiv = (5 * JB * sizeof(int) + sizeof(double) - 1) / (sizeof(double));
     psz.ml2 = get_num_rows_L2(npcol, myrow, icurrow, JB, mp);
     psz.len_lbcast = psz.ml2 * JB + JB * JB + psz.lpiv; // L2, L1, integer arrays
-    psz.lwork = panel->len + 1;
+    psz.lwork = psz.len_lbcast + 1;
     psz.nu  = Mmax(0, (mycol == icurcol ? nq - JB : nq));
     psz.ldu = psz.nu + JB + 256; /*extra space for potential padding*/
     psz.uwork = JB * psz.ldu;
