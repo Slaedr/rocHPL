@@ -145,6 +145,18 @@ int  HPL_pdpanel_bcast(HPL_T_panel*);
 
 // Helper functions
 
+struct HPL_panel_sizes {
+  size_t lpiv;            ///< Length of pivot vector
+  int len_lbcast;         ///< Length of lbcast buffer (same as panel->len)
+  int ml2;                ///< Num local rows in trailing part of L, called L2
+  int lwork;              ///< Length of workspace related to L
+  int nu;                 ///< Num local cols in U
+  int uwork;              ///< Length of workspace related to U
+  int ldu;                ///< Increment of U
+  int l_i_work;           ///< Length of workspace for indices
+  size_t l_f_work;        ///< Length of workspace for factorization
+};
+
 /// Get number or rows in the L2 factor matrix
 int get_num_rows_L2(int npcol, int myrow, int current_prow,
                     int panel_ncols, int local_nrows);
@@ -179,6 +191,13 @@ int get_num_rows_L2(int npcol, int myrow, int current_prow,
  * This allows to save some redundant and useless computations.
  */
 int get_index_workspace_len(int nprow, int panel_ncols, int local_nrows);
+
+HPL_panel_sizes get_panel_sizes(HPL_T_pmat *A, int M, int N, int JB, int IA, int JA,
+                                HPL_T_panel *panel);
+
+/// Initialize the pointers of the panel structure
+void initialize_panel_pointers(HPL_T_pmat *A, int JB, int icurrow, int icurcol, int mp,
+                               int ml2, int nu, int lpiv, double fraction, HPL_T_panel *panel);
 
 #endif
 /*

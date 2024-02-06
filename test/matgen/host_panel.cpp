@@ -28,18 +28,17 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
     panel->grid = grid;
     panel->algo = algo;
 
-    int icurcol, icurrow, ii, itmp1, jj, uwork, ml2, mycol, myrow, nb,
-        npcol, nprow, nu, ldu;
+    int icurcol, icurrow, ii, jj;
 
     panel->grid = grid; /* ptr to the process grid */
     panel->algo = algo; /* ptr to the algo parameters */
     panel->pmat = mat;    /* ptr to the local array info */
 
-    myrow = grid->myrow;
-    mycol = grid->mycol;
-    nprow = grid->nprow;
-    npcol = grid->npcol;
-    nb    = mat->nb;
+    const int myrow = grid->myrow;
+    const int mycol = grid->mycol;
+    const int nprow = grid->nprow;
+    const int npcol = grid->npcol;
+    const int nb    = mat->nb;
 
     HPL_infog2l(gl_start_row, gl_start_col,
                 nb, nb, nb, nb,
@@ -145,36 +144,17 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
     /*Split fraction*/
     const double fraction = algo->frac;
 
-    const size_t dalign      = algo->align * sizeof(double);
-    const size_t lpiv = (5 * ncols * sizeof(int) + sizeof(double) - 1) / (sizeof(double));
+    const HPL_panel_sizes psz = get_panel_sizes(mat, nrows, gl_trailing_ncols, ncols,
+                                                gl_start_row, gl_start_col, panel);
+    panel->len = psz.len_lbcast;
 
-    if(npcol > 1) {
-      ml2 = (myrow == icurrow ? mp - ncols : mp);
-      ml2 = Mmax(0, ml2);
-      ml2 = ((ml2 + 95) / 128) * 128 + 32; /*pad*/
-    } else {
-      ml2 = 0; // L2 is aliased inside A
-    }
-
-    /* Size of LBcast message */
-    panel->len = ml2 * ncols + ncols * ncols + lpiv; // L2, L1, integer arrays
-
-    /* space for L */
-    int lwork = panel->len + 1;
-
-    nu  = Mmax(0, (mycol == icurcol ? nq - ncols : nq));
-    ldu = nu + ncols + 256; /*extra space for potential padding*/
-
-    /* space for U */
-    uwork = ncols * ldu;
-
-    if(panel->max_lwork_size < (size_t)(lwork) * sizeof(double)) {
+    if(panel->max_lwork_size < (size_t)(psz.lwork) * sizeof(double)) {
       //if(panel->LWORK) {
       //  free(panel->LWORK);
       //}
       // size_t numbytes = (((size_t)((size_t)(lwork) * sizeof( double )) +
       // (size_t)4095)/(size_t)4096)*(size_t)4096;
-      const size_t numbytes = (size_t)(lwork) * sizeof(double);
+      const size_t numbytes = (size_t)(psz.lwork) * sizeof(double);
 
       //if(deviceMalloc(grid, (void**)&(panel->dLWORK), numbytes) != HPL_SUCCESS) {
       //  HPL_pabort(__LINE__,
@@ -187,15 +167,15 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
                    "Host memory allocation failed for L workspace.");
       }
 
-      panel->max_lwork_size = (size_t)(lwork) * sizeof(double);
+      panel->max_lwork_size = (size_t)(psz.lwork) * sizeof(double);
     }
-    if(panel->max_uwork_size < (size_t)(uwork) * sizeof(double)) {
+    if(panel->max_uwork_size < (size_t)(psz.uwork) * sizeof(double)) {
       //if(panel->UWORK) {
       //  free(panel->UWORK);
       //}
       // size_t numbytes = (((size_t)((size_t)(uwork) * sizeof( double )) +
       // (size_t)4095)/(size_t)4096)*(size_t)4096;
-      size_t numbytes = (size_t)(uwork) * sizeof(double);
+      const size_t numbytes = (size_t)(psz.uwork) * sizeof(double);
 
       //if(deviceMalloc(grid, (void**)&(panel->dUWORK), numbytes) != HPL_SUCCESS) {
       //  HPL_pabort(__LINE__,
@@ -208,161 +188,45 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
                    "Host memory allocation failed for U workspace.");
       }
 
-      panel->max_uwork_size = (size_t)(uwork) * sizeof(double);
+      panel->max_uwork_size = (size_t)(psz.uwork) * sizeof(double);
     }
 
     /*
      * Initialize the pointers of the panel structure
      */
-    if(npcol == 1) {
-      panel->L2    = panel->A + (myrow == icurrow ? ncols : 0);
-      panel->dL2   = panel->dA + (myrow == icurrow ? ncols : 0);
-      panel->ldl2  = mat->ld;
-      panel->dldl2 = mat->ld; /*L2 is aliased inside A*/
-
-      panel->L1  = (double*)panel->LWORK;
-      panel->dL1 = (double*)panel->dLWORK;
-    } else {
-      panel->L2    = (double*)panel->LWORK;
-      panel->dL2   = (double*)panel->dLWORK;
-      panel->ldl2  = Mmax(0, ml2);
-      panel->dldl2 = Mmax(0, ml2);
-
-      panel->L1  = panel->L2 + ml2 * ncols;
-      panel->dL1 = panel->dL2 + ml2 * ncols;
-    }
-
-    panel->U  = (double*)panel->UWORK;
-    panel->dU = (double*)panel->dUWORK;
-    panel->W  = mat->W;
-    panel->dW = mat->dW;
-
-    if(nprow == 1) {
-      panel->nu0  = (mycol == inxtcol) ? Mmin(ncols, nu) : 0;
-      panel->ldu0 = panel->nu0;
-
-      panel->nu1  = 0;
-      panel->ldu1 = 0;
-
-      panel->nu2  = nu - panel->nu0;
-      panel->ldu2 = ((panel->nu2 + 95) / 128) * 128 + 32; /*pad*/
-
-      panel->U2  = panel->U + ncols * ncols;
-      panel->dU2 = panel->dU + ncols * ncols;
-      panel->U1  = panel->U2 + panel->ldu2 * ncols;
-      panel->dU1 = panel->dU2 + panel->ldu2 * ncols;
-
-      panel->permU  = (int*)(panel->L1 + ncols * ncols);
-      panel->dpermU = (int*)(panel->dL1 + ncols * ncols);
-      panel->ipiv   = panel->permU + ncols;
-      panel->dipiv  = panel->dpermU + ncols;
-
-      panel->DINFO  = (double*)(panel->ipiv + 2 * ncols);
-      panel->dDINFO = (double*)(panel->dipiv + 2 * ncols);
-    } else {
-      const int NSplit = Mmax(0, ((((int)(mat->nq * fraction)) / nb) * nb));
-      panel->nu0       = (mycol == inxtcol) ? Mmin(ncols, nu) : 0;
-      panel->ldu0      = panel->nu0;
-
-      panel->nu2  = Mmin(nu - panel->nu0, NSplit);
-      panel->ldu2 = ((panel->nu2 + 95) / 128) * 128 + 32; /*pad*/
-
-      panel->nu1  = nu - panel->nu0 - panel->nu2;
-      panel->ldu1 = ((panel->nu1 + 95) / 128) * 128 + 32; /*pad*/
-
-      panel->U2  = panel->U + ncols * ncols;
-      panel->dU2 = panel->dU + ncols * ncols;
-      panel->U1  = panel->U2 + panel->ldu2 * ncols;
-      panel->dU1 = panel->dU2 + panel->ldu2 * ncols;
-
-      panel->W2  = panel->W + ncols * ncols;
-      panel->dW2 = panel->dW + ncols * ncols;
-      panel->W1  = panel->W2 + panel->ldu2 * ncols;
-      panel->dW1 = panel->dW2 + panel->ldu2 * ncols;
-
-      panel->lindxA   = (int*)(panel->L1 + ncols * ncols);
-      panel->dlindxA  = (int*)(panel->dL1 + ncols * ncols);
-      panel->lindxAU  = panel->lindxA + ncols;
-      panel->dlindxAU = panel->dlindxA + ncols;
-      panel->lindxU   = panel->lindxAU + ncols;
-      panel->dlindxU  = panel->dlindxAU + ncols;
-      panel->permU    = panel->lindxU + ncols;
-      panel->dpermU   = panel->dlindxU + ncols;
-
-      // Put ipiv array at the end
-      panel->ipiv  = panel->permU + ncols;
-      panel->dipiv = panel->dpermU + ncols;
-
-      panel->DINFO  = ((double*)panel->lindxA) + lpiv;
-      panel->dDINFO = ((double*)panel->dlindxA) + lpiv;
-    }
+    initialize_panel_pointers(mat, ncols, icurrow, icurcol, mp, psz.ml2, psz.nu, psz.lpiv, fraction,
+                              panel);
 
     *(panel->DINFO) = 0.0;
 
-    /*
-     * If nprow is 1, we just allocate an array of ncols integers to store the
-     * pivot IDs during factoring, and a scratch array of mp integers.
-     * When nprow > 1, we allocate the space for the index arrays immediate-
-     * ly. The exact size of this array depends on the swapping routine that
-     * will be used, so we allocate the maximum:
-     *
-     *    IWORK[0] is of size at most 1      +
-     *    IPL      is of size at most 1      +
-     *    IPID     is of size at most 4 * ncols +
-     *    IPIV     is of size at most ncols     +
-     *    SCRATCH  is of size at most MP
-     *
-     *    ipA      is of size at most 1      +
-     *    iplen    is of size at most NPROW  + 1 +
-     *    ipcounts is of size at most NPROW  +
-     *    ioffsets is of size at most NPROW  +
-     *    iwork    is of size at most MAX( 2*ncols, NPROW+1 ).
-     *
-     * that is  mp + 4 + 5*ncols + 3*NPROW + MAX( 2*ncols, NPROW+1 ).
-     *
-     * We use the fist entry of this to work array  to indicate  whether the
-     * the  local  index arrays have already been computed,  and if yes,  by
-     * which function:
-     *    IWORK[0] = -1: no index arrays have been computed so far;
-     *    IWORK[0] =  1: HPL_pdlaswp already computed those arrays;
-     * This allows to save some redundant and useless computations.
-     */
-    if(nprow == 1) {
-      lwork = mp + ncols;
-    } else {
-      itmp1 = (ncols << 1);
-      lwork = nprow + 1;
-      itmp1 = Mmax(itmp1, lwork);
-      lwork = mp + 4 + (5 * ncols) + (3 * nprow) + itmp1;
-    }
+    //const int liwork = get_index_workspace_len(nprow, ncols, mp);
 
-    if(panel->max_iwork_size < (size_t)(lwork) * sizeof(int)) {
-      const size_t numbytes = (size_t)(lwork) * sizeof(int);
+    if(panel->max_iwork_size < psz.l_i_work * sizeof(int)) {
+      const size_t numbytes = psz.l_i_work * sizeof(int);
 
       if(HPL_malloc((void**)&(panel->IWORK), numbytes) != HPL_SUCCESS) {
         HPL_pabort(__LINE__,
                    "HPL_pdpanel_init",
                    "Host memory allocation failed for integer workspace.");
       }
-      panel->max_iwork_size = (size_t)(lwork) * sizeof(int);
+      panel->max_iwork_size = psz.l_i_work * sizeof(int);
     }
 
-    if(lwork) {
+    if(psz.l_i_work) {
       *(panel->IWORK) = -1;
     }
 
     /*Finally, we need 4 + 4*ncols entries of scratch for pdfact */
-    lwork = (size_t)(((4 + ((unsigned int)(ncols) << 1)) << 1));
-    if(panel->max_fwork_size < (size_t)(lwork) * sizeof(double)) {
-      const size_t numbytes = (size_t)(lwork) * sizeof(double);
+    //const auto lfwork = static_cast<size_t>(((4 + ((unsigned int)(ncols) << 1)) << 1));
+    if(panel->max_fwork_size < psz.l_f_work * sizeof(double)) {
+      const size_t numbytes = psz.l_f_work * sizeof(double);
 
       if(HPL_malloc((void**)&(panel->fWORK), numbytes) != HPL_SUCCESS) {
         HPL_pabort(__LINE__,
                    "HPL_pdpanel_init",
                    "Host memory allocation failed for pdfact scratch workspace.");
       }
-      printf("Allocated %lu bytes in fwork.\n", numbytes); fflush(stdout);
-      panel->max_fwork_size = (size_t)(lwork) * sizeof(double);
+      panel->max_fwork_size = psz.l_f_work * sizeof(double);
     }
 }
 

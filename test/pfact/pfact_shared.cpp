@@ -11,9 +11,9 @@ using namespace test;
 
 HPL_T_palg get_default_settings();
 
-void test_shared_pdrpanrlN(HPL_T_panel *const panel)
+void test_shared_pdrpanrlN(HPL_T_panel *const panel_1, HPL_T_panel *const panel_2)
 {
-    HPL_pdfact(panel, HPL_COMM_CUSTOM_IMPL);
+    HPL_pdfact(panel_1, HPL_COMM_CUSTOM_IMPL);
 }
 
 int main(int argc, char *argv[])
@@ -30,17 +30,22 @@ int main(int argc, char *argv[])
     HPL_grid_init(MPI_COMM_WORLD, HPL_COLUMN_MAJOR, 1, 1, 1, 1, &grid);
     const HPL_T_palg algo = get_default_settings();
 
-    HPL_T_pmat mat;
-    HPL_host_pdmat_init(&grid, nrows, ncols, &mat);
-    matgen::HPL_dmatgen(nrows, ncols, mat.A, lda, seed);
+    HPL_T_pmat mat1, mat2;
+    HPL_host_pdmat_init(&grid, nrows, ncols, &mat1);
+    matgen::HPL_dmatgen(nrows, ncols, mat1.A, lda, seed);
+    HPL_host_pdmat_init(&grid, nrows, ncols, &mat2);
+    matgen::HPL_dmatgen(nrows, ncols, mat2.A, lda, seed);
 
-    HPL_T_panel panel;
-    allocate_host_panel(&grid, &algo, &mat, nrows, ncols, ncols, 0, 0, &panel);
+    HPL_T_panel panel1, panel2;
+    allocate_host_panel(&grid, &algo, &mat1, nrows, ncols, ncols, 0, 0, &panel1);
+    allocate_host_panel(&grid, &algo, &mat2, nrows, ncols, ncols, 0, 0, &panel2);
 
-    test_shared_pdrpanrlN(&panel);
+    test_shared_pdrpanrlN(&panel1, &panel2);
 
-    free_host_panel(&panel);
-    HPL_host_matfree(&mat);
+    free_host_panel(&panel1);
+    free_host_panel(&panel2);
+    HPL_host_matfree(&mat1);
+    HPL_host_matfree(&mat2);
     HPL_grid_exit(&grid);
     MPI_Finalize();
     return 0;

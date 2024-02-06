@@ -86,7 +86,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 #set(HOST_SOURCE_FILES pfact/*)
 file(GLOB rochpl_host_sources RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/pfact/*.cpp"
-    "src/auxil/*.cpp" "src/pauxil/*.cpp" "src/blas/*.cpp" "src/comm/*.cpp" "src/grid/*.cpp")
+    "src/auxil/*.cpp" "src/pauxil/*.cpp" "src/blas/*.cpp" "src/comm/*.cpp" "src/grid/*.cpp"
+    "src/panel/HPL_panel_helpers.cpp")
 file(GLOB_RECURSE rochpl_device_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*_device.cpp")
 list(REMOVE_ITEM rochpl_host_sources ${rochpl_device_source})
 
