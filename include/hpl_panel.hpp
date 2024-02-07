@@ -16,27 +16,27 @@
 #ifndef HPL_PANEL_HPP
 #define HPL_PANEL_HPP
 
-/*
- * ---------------------------------------------------------------------
- * Include files
- * ---------------------------------------------------------------------
- */
 #include <cstddef>
 
 #include "hpl_pmisc.hpp"
 #include "hpl_grid.hpp"
 #include "hpl_pgesv_types.hpp"
 
-/*
- * ---------------------------------------------------------------------
- * Data Structures
- * ---------------------------------------------------------------------
+/** Panel structure.
+ *
+ * Accessing an array in this require carefully noting
+ * what the leading dimension (LD) for that array is.
+ *-----------------------------------------------------------
+ * Array (member pointer)                LD (member variable)
+ *-----------------------------------------------------------
+ *         A                                   lda
+ *         L1                                   jb
  */
 struct HPL_T_panel {
   const HPL_T_grid* grid;   /* ptr to the process grid */
   const HPL_T_palg* algo;   /* ptr to the algo parameters */
   HPL_T_pmat* pmat;   /* ptr to the local array info */
-  double*            A;      /* ptr to trailing part of A */
+  double*            A;      /* ptr to trailing part of A. LD is lda. */
   double*            dA;     /* ptr to trailing part of A */
   double*            LWORK;  /* L work space */
   double*            dLWORK; /* L device-copy work space */
@@ -44,7 +44,7 @@ struct HPL_T_panel {
   double*            dUWORK; /* U device-copy work space */
   double*            fWORK;  /* pdfact work space */
   double*            L2;     /* ptr to L */
-  double*            L1;     /* ptr to jb x jb upper block of A */
+  double*            L1;     // ptr to jb x jb upper block of A. LD for this is the panel width jb.
   double*            dL2;    /* ptr to L */
   double*            dL1;    /* ptr to jb x jb upper block of A */
   double*            DINFO;  /* ptr to replicated scalar info */
@@ -93,7 +93,7 @@ struct HPL_T_panel {
   int                nq;         /* local # of cols of trailing part of A */
   int                ii;         /* local row index of trailing part of A */
   int                jj;         /* local col index of trailing part of A */
-  int                lda;        /* local leading dim of array A */
+  int                lda;        /* local leading dim (LD) of array A */
   int                dlda;       /* local leading dim of array A */
   int                prow;       /* proc. row owning 1st row of trail. A */
   int                pcol;       /* proc. col owning 1st col of trail. A */

@@ -1,4 +1,7 @@
-#include "alloc.hpp"
+#include "panel.hpp"
+
+#include <cmath>
+#include <cassert>
 
 #include <hpl_auxil.hpp>
 #include <hpl_pauxil.hpp>
@@ -17,13 +20,6 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
     panel->max_iwork_size       = 0;
     panel->max_fwork_size       = 0;
     panel->free_work_now        = 0;
-    //panel->A                    = NULL;
-    //panel->LWORK                = NULL;
-    //panel->dLWORK               = NULL;
-    //panel->UWORK                = NULL;
-    //panel->dUWORK               = NULL;
-    //panel->fWORK                = NULL;
-    //panel->IWORK                = NULL;
 
     panel->grid = grid;
     panel->algo = algo;
@@ -149,18 +145,8 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
     panel->len = psz.len_lbcast;
 
     if(panel->max_lwork_size < (size_t)(psz.lwork) * sizeof(double)) {
-      //if(panel->LWORK) {
-      //  free(panel->LWORK);
-      //}
-      // size_t numbytes = (((size_t)((size_t)(lwork) * sizeof( double )) +
-      // (size_t)4095)/(size_t)4096)*(size_t)4096;
       const size_t numbytes = (size_t)(psz.lwork) * sizeof(double);
 
-      //if(deviceMalloc(grid, (void**)&(panel->dLWORK), numbytes) != HPL_SUCCESS) {
-      //  HPL_pabort(__LINE__,
-      //             "HPL_pdpanel_init",
-      //             "Device memory allocation failed for L workspace.");
-      //}
       if(HPL_malloc((void**)&(panel->LWORK), numbytes) != HPL_SUCCESS) {
         HPL_pabort(__LINE__,
                    "HPL_pdpanel_init",
@@ -170,18 +156,8 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
       panel->max_lwork_size = (size_t)(psz.lwork) * sizeof(double);
     }
     if(panel->max_uwork_size < (size_t)(psz.uwork) * sizeof(double)) {
-      //if(panel->UWORK) {
-      //  free(panel->UWORK);
-      //}
-      // size_t numbytes = (((size_t)((size_t)(uwork) * sizeof( double )) +
-      // (size_t)4095)/(size_t)4096)*(size_t)4096;
       const size_t numbytes = (size_t)(psz.uwork) * sizeof(double);
 
-      //if(deviceMalloc(grid, (void**)&(panel->dUWORK), numbytes) != HPL_SUCCESS) {
-      //  HPL_pabort(__LINE__,
-      //             "HPL_pdpanel_init",
-      //             "Device memory allocation failed for U workspace.");
-      //}
       if(HPL_malloc((void**)&(panel->UWORK), numbytes) != HPL_SUCCESS) {
         HPL_pabort(__LINE__,
                    "HPL_pdpanel_init",
@@ -199,8 +175,6 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
 
     *(panel->DINFO) = 0.0;
 
-    //const int liwork = get_index_workspace_len(nprow, ncols, mp);
-
     if(panel->max_iwork_size < psz.l_i_work * sizeof(int)) {
       const size_t numbytes = psz.l_i_work * sizeof(int);
 
@@ -217,7 +191,6 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
     }
 
     /*Finally, we need 4 + 4*ncols entries of scratch for pdfact */
-    //const auto lfwork = static_cast<size_t>(((4 + ((unsigned int)(ncols) << 1)) << 1));
     if(panel->max_fwork_size < psz.l_f_work * sizeof(double)) {
       const size_t numbytes = psz.l_f_work * sizeof(double);
 
@@ -230,32 +203,86 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
     }
 }
 
-void free_host_panel(HPL_T_panel *const PANEL) {
-    if(PANEL->pmat->info == 0) {
-        PANEL->pmat->info = *(PANEL->DINFO);
+void free_host_panel(HPL_T_panel *const panel) {
+    if(panel->pmat->info == 0) {
+        panel->pmat->info = *(panel->DINFO);
     }
 
-    if(PANEL->free_work_now == 1) {
-        if(PANEL->LWORK) {
-          free(PANEL->LWORK);
+    if(panel->free_work_now == 1) {
+        if(panel->LWORK) {
+          free(panel->LWORK);
         }
-        if(PANEL->UWORK) {
-          free(PANEL->UWORK);
-        }
-
-        PANEL->max_lwork_size = 0;
-        PANEL->max_uwork_size = 0;
-
-        if(PANEL->IWORK) {
-          free(PANEL->IWORK);
-        }
-        if(PANEL->fWORK) {
-          free(PANEL->fWORK);
+        if(panel->UWORK) {
+          free(panel->UWORK);
         }
 
-        PANEL->max_iwork_size = 0;
-        PANEL->max_fwork_size = 0;
+        panel->max_lwork_size = 0;
+        panel->max_uwork_size = 0;
+
+        if(panel->IWORK) {
+          free(panel->IWORK);
+        }
+        if(panel->fWORK) {
+          free(panel->fWORK);
+        }
+
+        panel->max_iwork_size = 0;
+        panel->max_fwork_size = 0;
     }
+}
+
+hpl_panel_diff compare_panels_host(const HPL_T_panel *const p1, const HPL_T_panel *const p2,
+                                   const double reltol)
+{
+    hpl_panel_diff diff{true, true, -1, -1, -1, -1, 1.0, 1.0};
+
+    if(p1->m != p2->m) {
+      diff.match_M = false;
+    }
+    if(p1->jb != p2->jb) {
+      diff.match_ncols = false;
+    }
+    if(!diff.match_M || !diff.match_ncols) {
+      return diff;
+    }
+
+    // Looks like pdfact does not use U
+
+    // check A
+    double diffnorm_A = 0;
+    double base_A = 0;
+    for(int j = 0; j < p1->jb; j++) {
+      for(int i = 0; i < p1->m; i++) {
+        const double delta = std::abs(p1->A[i + j*p1->lda] - p2->A[i + j*p2->lda]);
+        const double base = std::max(std::abs(p1->A[i + j*p1->lda]), std::abs(p2->A[i + j*p2->lda]));
+        if(delta/base > reltol) {
+          diff.i_A = i;
+          diff.j_A = j;
+        }
+        diffnorm_A = std::max(diffnorm_A, delta);
+        base_A = std::max(base_A, base);
+      }
+    }
+    diff.rel_diff_norm_A = diffnorm_A / base_A;
+
+    // check L1
+    double diffnorm_L1 = 0;
+    double base_L1 = 0;
+    for(int j = 0; j < p1->jb; j++) {
+      for(int i = 0; i < p1->jb; i++) {
+        const double delta = std::abs(p1->L1[i + j*p1->jb] - p2->L1[i + j*p2->jb]);
+        const double base = std::max(std::abs(p1->L1[i + j*p1->jb]), std::abs(p2->L1[i + j*p2->jb]));
+        if(delta/base > reltol) {
+          diff.i_L1 = i;
+          diff.j_L1 = j;
+        }
+        diffnorm_L1 = std::max(diffnorm_L1, delta);
+        base_L1 = std::max(base_L1, base);
+      }
+    }
+    diff.rel_diff_norm_L1 = diffnorm_L1 / base_L1;
+
+    return diff;
 }
 
 }

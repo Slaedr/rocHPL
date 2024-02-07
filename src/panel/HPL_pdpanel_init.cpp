@@ -225,32 +225,9 @@ void HPL_pdpanel_init(HPL_T_grid*  GRID,
 
   /*Split fraction*/
   const double fraction = ALGO->frac;
-
-  //const size_t lpiv = (5 * JB * sizeof(int) + sizeof(double) - 1) / (sizeof(double));
-
-  //const int ml2 = get_num_rows_L2(npcol, myrow, icurrow, JB, mp);
-
-  ///* Size of LBcast message */
-  ////PANEL->len = ml2 * JB + JB * JB + lpiv; // L2, L1, integer arrays
-
-  ///* space for L */
-  //const int lwork = PANEL->len + 1;
-
-  //const int nu  = Mmax(0, (mycol == icurcol ? nq - JB : nq));
-  //const int ldu = nu + JB + 256; /*extra space for potential padding*/
-
-  ///* space for U */
-  //const int uwork = JB * ldu;
-
   const HPL_panel_sizes psz = get_panel_sizes(A, M, N, JB, IA, JA, PANEL);
   /* Size of LBcast message */
   PANEL->len = psz.len_lbcast;
-  //psz.lwork = lwork;
-  //psz.uwork = uwork;
-  //psz.ml2 = ml2;
-  //psz.nu = nu;
-  //psz.ldu = ldu;
-  //psz.lpiv = lpiv;
 
   if(PANEL->max_lwork_size < (size_t)(psz.lwork) * sizeof(double)) {
     if(PANEL->LWORK) {
