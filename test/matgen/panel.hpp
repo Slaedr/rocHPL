@@ -25,8 +25,8 @@ struct hpl_panel_diff {
 };
 
 /// Determine where two panels differ
-hpl_panel_diff compare_panels_host(const HPL_T_panel *p1, const HPL_T_panel *p2,
-                                   double reltol);
+hpl_panel_diff compare_panels_host(const HPL_T_panel *p1, const HPL_T_panel *p2, double reltol,
+                                   bool transpose_L1_2 = false);
 
 }
 

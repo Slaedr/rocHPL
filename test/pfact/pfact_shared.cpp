@@ -44,7 +44,10 @@ int main(int argc, char *argv[])
 
     HPL_T_grid grid;
     HPL_grid_init(MPI_COMM_WORLD, HPL_COLUMN_MAJOR, 1, 1, 1, 1, &grid);
-    const HPL_T_palg algo = get_default_settings();
+    const HPL_T_palg algo1 = get_default_settings();
+    HPL_T_palg algo2 = get_default_settings();
+    algo2.rffun = HPL_pdrpanrlN;
+    algo2.pffun = HPL_pdpanrlN;
 
     HPL_T_pmat mat1, mat2;
     HPL_host_pdmat_init(&grid, nrows, ncols, &mat1);
@@ -54,8 +57,8 @@ int main(int argc, char *argv[])
     test_mat_same_host(&mat1, &mat2, 2.2e-16);
 
     HPL_T_panel panel1, panel2;
-    allocate_host_panel(&grid, &algo, &mat1, nrows, ncols, ncols, 0, 0, &panel1);
-    allocate_host_panel(&grid, &algo, &mat2, nrows, ncols, ncols, 0, 0, &panel2);
+    allocate_host_panel(&grid, &algo1, &mat1, nrows, ncols, ncols, 0, 0, &panel1);
+    allocate_host_panel(&grid, &algo2, &mat2, nrows, ncols, ncols, 0, 0, &panel2);
 
     test_shared_pdrpanrlN(&panel1, &panel2);
 

@@ -232,7 +232,7 @@ void free_host_panel(HPL_T_panel *const panel) {
 }
 
 hpl_panel_diff compare_panels_host(const HPL_T_panel *const p1, const HPL_T_panel *const p2,
-                                   const double reltol)
+                                   const double reltol, const bool transpose_L1_2)
 {
     hpl_panel_diff diff{true, true, -1, -1, -1, -1, 1.0, 1.0};
 
@@ -270,8 +270,10 @@ hpl_panel_diff compare_panels_host(const HPL_T_panel *const p1, const HPL_T_pane
     double base_L1 = 0;
     for(int j = 0; j < p1->jb; j++) {
       for(int i = 0; i < p1->jb; i++) {
-        const double delta = std::abs(p1->L1[i + j*p1->jb] - p2->L1[i + j*p2->jb]);
-        const double base = std::max(std::abs(p1->L1[i + j*p1->jb]), std::abs(p2->L1[i + j*p2->jb]));
+        const int idx1 = transpose_L1_2 ? j + i*p1->jb : i + j*p1->jb;
+        const int idx2 = transpose_L1_2 ? j + i*p2->jb : i + j*p2->jb;
+        const double delta = std::abs(p1->L1[idx1] - p2->L1[idx2]);
+        const double base = std::max(std::abs(p1->L1[idx1]), std::abs(p2->L1[idx2]));
         if(delta/base > reltol) {
           diff.i_L1 = i;
           diff.j_L1 = j;
