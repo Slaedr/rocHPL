@@ -98,6 +98,14 @@ if(HPL_DETAILED_TIMING)
 endif()
 if(HPL_BUILD_WITHOUT_HIP)
     target_compile_definitions(rochpl_host PUBLIC HPL_BUILD_WITHOUT_HIP=1)
+else()
+    # Setup version
+    rocm_setup_version(VERSION 6.0.0)
+    target_include_directories(rochpl_host PRIVATE $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>)
+    target_include_directories(rochpl_host PRIVATE $<BUILD_INTERFACE:${ROCM_PATH}/include/roctracer>)
+    target_link_libraries(rochpl_host PRIVATE hip::host)
+    target_link_libraries(rochpl_host PRIVATE roc::roctracer)
+    target_link_libraries(rochpl_host PRIVATE roc::roctx)
 endif()
 target_include_directories(rochpl_host
     PRIVATE
@@ -106,22 +114,23 @@ target_include_directories(rochpl_host
 target_link_libraries(rochpl_host PUBLIC MPI::MPI_CXX)
 target_link_libraries(rochpl_host PRIVATE OpenMP::OpenMP_CXX)
 target_link_libraries(rochpl_host PRIVATE BLAS::BLAS)
+target_link_options(rochpl_host PUBLIC "-fopenmp")
+
 # Configure a header file to pass the rocHPL version
 rochpl_setup_version("${CMAKE_CURRENT_SOURCE_DIR}/include/hpl_version.hpp.in"
                     "${PROJECT_BINARY_DIR}/include/hpl_version.hpp")
+
 if(HPL_BUILD_TESTS)
     add_subdirectory(test)
 endif()
 
 if(NOT HPL_BUILD_WITHOUT_HIP)
-    # Setup version
-    rocm_setup_version(VERSION 6.0.0)
-
     # HPL sources
     file(GLOB_RECURSE rochpl_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.cpp")
 
     # HPL device sources
     list(REMOVE_ITEM rochpl_source ${rochpl_device_source})
+    list(REMOVE_ITEM rochpl_source ${rochpl_host_sources})
 
     # Flag source files as hip source files
     foreach(i ${rochpl_device_source})
@@ -186,6 +195,8 @@ if(NOT HPL_BUILD_WITHOUT_HIP)
                                $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
                                $<BUILD_INTERFACE:${HPL_MPI_DIR}/include>
                                $<BUILD_INTERFACE:${ROCM_PATH}/include/roctracer>)
+
+    target_link_libraries(rochpl PRIVATE rochpl_host)
 
     #HIP
     target_link_libraries(rochpl PRIVATE hip::host)

@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cassert>
+#include <algorithm> // for max, min etc.
 
 #include <hpl_auxil.hpp>
 #include <hpl_pauxil.hpp>

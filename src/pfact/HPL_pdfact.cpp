@@ -19,7 +19,7 @@
 
 #include "hpl.hpp"
 
-#ifndef HPL_BUILD_TESTS
+#ifndef HPL_BUILD_WITHOUT_HIP
 #include "hpl_hip.hpp"
 #endif
 

@@ -17,6 +17,7 @@
 #define HPL_PTEST_HPP
 
 #include <cstdlib>
+#include <cstdio>
 #include <vector>
 
 /*
