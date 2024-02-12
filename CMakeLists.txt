@@ -75,6 +75,7 @@ if(NOT HPL_BUILD_TESTS)
     set(HPL_BUILD_WITHOUT_HIP OFF)
 else()
     add_compile_definitions(HPL_BUILD_TESTS=1)
+    set(HPL_DETAILED_TIMING ON)
 endif()
 
 # Dependencies
@@ -87,27 +88,32 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #set(HOST_SOURCE_FILES pfact/*)
 file(GLOB rochpl_host_sources RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/pfact/*.cpp"
     "src/auxil/*.cpp" "src/pauxil/*.cpp" "src/blas/*.cpp" "src/comm/*.cpp" "src/grid/*.cpp"
-    "src/panel/HPL_panel_helpers.cpp")
+    "src/panel/HPL_panel_helpers.cpp" "src/timer/*.cpp" "src/HPL_pdinfo.cpp")
 file(GLOB_RECURSE rochpl_device_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*_device.cpp")
 list(REMOVE_ITEM rochpl_host_sources ${rochpl_device_source})
 
+add_library(rochpl_host ${rochpl_host_sources})
+if(HPL_DETAILED_TIMING)
+    target_compile_definitions(rochpl_host PRIVATE HPL_DETAILED_TIMING)
+endif()
 if(HPL_BUILD_WITHOUT_HIP)
-    add_compile_definitions(HPL_BUILD_WITHOUT_HIP=1)
-    add_library(rochpl_host ${rochpl_host_sources})
-    target_include_directories(rochpl_host
-        PRIVATE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>)
-    target_link_libraries(rochpl_host PUBLIC MPI::MPI_CXX)
-    target_link_libraries(rochpl_host PRIVATE OpenMP::OpenMP_CXX)
-    target_link_libraries(rochpl_host PRIVATE BLAS::BLAS)
-    # Configure a header file to pass the rocHPL version
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/hpl_version.hpp.in"
-                   "${PROJECT_BINARY_DIR}/include/hpl_version.hpp")
-    if(HPL_BUILD_TESTS)
-        add_subdirectory(test)
-    endif()
-else()
+    target_compile_definitions(rochpl_host PUBLIC HPL_BUILD_WITHOUT_HIP=1)
+endif()
+target_include_directories(rochpl_host
+    PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>)
+target_link_libraries(rochpl_host PUBLIC MPI::MPI_CXX)
+target_link_libraries(rochpl_host PRIVATE OpenMP::OpenMP_CXX)
+target_link_libraries(rochpl_host PRIVATE BLAS::BLAS)
+# Configure a header file to pass the rocHPL version
+rochpl_setup_version("${CMAKE_CURRENT_SOURCE_DIR}/include/hpl_version.hpp.in"
+                    "${PROJECT_BINARY_DIR}/include/hpl_version.hpp")
+if(HPL_BUILD_TESTS)
+    add_subdirectory(test)
+endif()
+
+if(NOT HPL_BUILD_WITHOUT_HIP)
     # Setup version
     rocm_setup_version(VERSION 6.0.0)
 
@@ -115,7 +121,6 @@ else()
     file(GLOB_RECURSE rochpl_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.cpp")
 
     # HPL device sources
-    #file(GLOB_RECURSE rochpl_device_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*_device.cpp")
     list(REMOVE_ITEM rochpl_source ${rochpl_device_source})
 
     # Flag source files as hip source files
@@ -242,10 +247,8 @@ else()
         set(ROCHPL_BIN "${CMAKE_INSTALL_PREFIX}/bin/rochpl-${PROJECT_VERSION}")
     endif()
 
-    # Configure a header file to pass the rocHPL version
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/hpl_version.hpp.in"
-                   "${PROJECT_BINARY_DIR}/include/hpl_version.hpp")
-
+    # configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/hpl_version.hpp.in"
+    #                 "${PROJECT_BINARY_DIR}/include/hpl_version.hpp")
     # Configure run scripts
     configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_rochpl.in"
                    "${CMAKE_BINARY_DIR}/run_rochpl"

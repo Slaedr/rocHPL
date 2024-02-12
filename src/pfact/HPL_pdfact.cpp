@@ -74,7 +74,10 @@ void HPL_pdfact(HPL_T_panel* PANEL, const HPL_Comm_impl_type allreduce_type) {
   PANEL->n -= jb;
   PANEL->ja += jb;
 
-  if((PANEL->grid->mycol != PANEL->pcol) || (jb <= 0)) return;
+  if((PANEL->grid->mycol != PANEL->pcol) || (jb <= 0)) {
+    return;
+  }
+
 #ifdef HPL_DETAILED_TIMING
   HPL_ptimer(HPL_TIMING_RPFACT);
 #endif
@@ -84,7 +87,7 @@ void HPL_pdfact(HPL_T_panel* PANEL, const HPL_Comm_impl_type allreduce_type) {
   double max_value[128];
   int    max_index[128];
 
-#ifndef HPL_BUILD_TESTS
+#ifndef HPL_BUILD_WITHOUT_HIP
   roctxRangePush("pdfact");
 #endif
 
@@ -105,7 +108,7 @@ void HPL_pdfact(HPL_T_panel* PANEL, const HPL_Comm_impl_type allreduce_type) {
                        max_index, allreduce_type);
   }
 
-#ifndef HPL_BUILD_TESTS
+#ifndef HPL_BUILD_WITHOUT_HIP
   roctxRangePop();
 #endif
 
