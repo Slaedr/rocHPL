@@ -47,6 +47,21 @@ namespace test {
 //     }
 // }
 
+extra_params get_extra_params(const int argc, char *argv[])
+{
+    extra_params params;
+    params.nrepeats = 20;
+
+    for(int i = 1; i < argc; i++) {
+        const std::string option = argv[i];
+        if(option == "--nrepeats") {
+            params.nrepeats = std::stoi(argv[i+1]);
+            i++;
+        }
+    }
+    return params;
+}
+
 HPL_T_palg get_default_settings()
 {
     HPL_T_palg algo;

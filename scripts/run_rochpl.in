@@ -105,6 +105,8 @@ rocprof_trace_run=false
 hpct_trace_run=false
 trace_output_path="."
 num_ranks_traced=1
+use_repeats=false
+nrepeats=20
 
 filename=HPL.dat
 inputfile=false
@@ -123,7 +125,7 @@ oversubscribe=true
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version,process_grid_layout:,output_file:,program:,use_mpi_lbcast,use_mpi_allreduce_dmxswp,use_mpi_scatterv,use_mpi_allgatherv,rocprof,hpct,trace_output_path:,num_ranks_traced: --options hP:Q:p:q:N:i:f:o: -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version,process_grid_layout:,output_file:,program:,use_mpi_lbcast,use_mpi_allreduce_dmxswp,use_mpi_scatterv,use_mpi_allgatherv,rocprof,hpct,trace_output_path:,num_ranks_traced:,nrepeats: --options hP:Q:p:q:N:i:f:o: -- "$@")
 else
   echo "Need a new version of getopt"
   exit 1
@@ -206,6 +208,10 @@ while true; do
         shift 2 ;;
     --program)
         rochpl_bin=${2}
+        shift 2 ;;
+    --nrepeats)
+        nrepeats=${2}
+        use_repeats=true
         shift 2 ;;
     --) shift ; break ;;
     *)  echo "Unexpected command line parameter received; aborting";
@@ -474,6 +480,10 @@ if [[ "${use_mpi_scatterv}" == true ]]; then
 fi
 if [[ "${use_mpi_allgatherv}" == true ]]; then
     rochpl_args+=" --use_mpi_allgatherv"
+fi
+
+if [[ "${use_repeats}" == true ]]; then
+    rochpl_args+=" --nrepeats ${nrepeats}"
 fi
 
 this_rank_rocprof=false
