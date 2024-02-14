@@ -359,14 +359,23 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" ]]; then
 
   if [[ $core_spec -eq 8 ]]; then
       # 1 + the actual root core, for low-noise mode
+      if [ $globalRank -eq 0 ]; then
+          echo run_rochpl: core spec = 8
+      fi
       root_cores=(49 57 17 25 1 9 33 41)
       num_use_cores=(7 7 7 7 7 7 7 7)
   elif [[ $core_spec -eq 0 ]]; then
+      if [ $globalRank -eq 0 ]; then
+          echo run_rochpl: core spec = 0
+      fi
       root_cores=(48 56 16 24 0 8 32 40)
       num_use_cores=(8 8 8 8 8 8 8 8)
   elif [[ $core_spec -eq 1 ]]; then
-      root_cores=(49 56 16 24 0 8 32 40)
-      num_use_cores=(7 8 8 8 8 8 8 8)
+      if [ $globalRank -eq 0 ]; then
+          echo run_rochpl: core spec = 1
+      fi
+      root_cores=(48 56 16 24 1 8 32 40)
+      num_use_cores=(8 8 8 8 7 8 8 8)
   else
       echo "Invalid core-spec ${core_spec}!"
       exit 1
