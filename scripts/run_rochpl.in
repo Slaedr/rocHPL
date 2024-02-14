@@ -97,6 +97,8 @@ N=45312
 NB=384
 frac=0.6
 proc_grid_layout=COLUMN_MAJOR
+# By default, 8 cores per node are reserved for system processes
+core_spec=8
 use_mpi_lbcast=false
 use_mpi_allreduce_dmxswp=false
 use_mpi_scatterv=false
@@ -125,7 +127,7 @@ oversubscribe=true
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version,process_grid_layout:,output_file:,program:,use_mpi_lbcast,use_mpi_allreduce_dmxswp,use_mpi_scatterv,use_mpi_allgatherv,rocprof,hpct,trace_output_path:,num_ranks_traced:,nrepeats: --options hP:Q:p:q:N:i:f:o: -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version,process_grid_layout:,output_file:,program:,use_mpi_lbcast,use_mpi_allreduce_dmxswp,use_mpi_scatterv,use_mpi_allgatherv,rocprof,hpct,trace_output_path:,num_ranks_traced:,nrepeats:,core_spec: --options hP:Q:p:q:N:i:f:o:S: -- "$@")
 else
   echo "Need a new version of getopt"
   exit 1
@@ -212,6 +214,9 @@ while true; do
     --nrepeats)
         nrepeats=${2}
         use_repeats=true
+        shift 2 ;;
+    -S|--core_spec)
+        core_spec=${2}
         shift 2 ;;
     --) shift ; break ;;
     *)  echo "Unexpected command line parameter received; aborting";
@@ -335,7 +340,6 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" ]]; then
   #   echo "BardPeak platform detected"
   # fi
   
-  num_use_cores=7
   num_domains=8
 
   # Sanity check
@@ -353,33 +357,45 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" ]]; then
   # GCD6 cores="32-39"
   # GCD7 cores="40-47"
 
-  #root_cores=(48 56 16 24 0 8 32 40)
-  # 1 + the actual root core, for low-noise mode
-  root_cores=(49 57 17 25 1 9 33 41)
+  if [[ $core_spec -eq 8 ]]; then
+      # 1 + the actual root core, for low-noise mode
+      root_cores=(49 57 17 25 1 9 33 41)
+      num_use_cores=(7 7 7 7 7 7 7 7)
+  elif [[ $core_spec -eq 0 ]]; then
+      root_cores=(48 56 16 24 0 8 32 40)
+      num_use_cores=(8 8 8 8 8 8 8 8)
+  elif [[ $core_spec -eq 1 ]]; then
+      root_cores=(49 56 16 24 0 8 32 40)
+      num_use_cores=(7 8 8 8 8 8 8 8)
+  else
+      echo "Invalid core-spec ${core_spec}!"
+      exit 1
+  fi
+
   root_core=${root_cores[mygpu]}
 
   # First omp place is the root core
   omp_places="{$root_core}"
 
   # First assign the CCD
-  for i in $(seq $((root_core+1)) $((root_core+num_use_cores-1)))
+  for i in $(seq $((root_core+1)) $((root_core+num_use_cores[mygpu]-1)))
   do
     omp_places+=",{$i}"
   done
-  omp_num_threads=$num_use_cores
+  omp_num_threads=${num_use_cores[mygpu]}
 
-  places="{$root_core-$((root_core+num_use_cores-1))}"
+  places="{$root_core-$((root_core+num_use_cores[mygpu]-1))}"
 
   # Loop through unassigned CCDs
   for c in $(seq $((mygpu+size)) $size 7)
   do
     iroot_core=${root_cores[c]}
-    for i in $(seq $((iroot_core)) $((iroot_core+num_use_cores-1)))
+    for i in $(seq $((iroot_core)) $((iroot_core+num_use_cores[c]-1)))
     do
       omp_places+=",{$i}"
     done
-    omp_num_threads=$((omp_num_threads+num_use_cores))
-    places+=",{$iroot_core-$((iroot_core+num_use_cores-1))}"
+    omp_num_threads=$((omp_num_threads+num_use_cores[c]))
+    places+=",{$iroot_core-$((iroot_core+num_use_cores[c]-1))}"
   done
 
   if [[ "${oversubscribe}" == true ]]; then
@@ -394,12 +410,12 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" ]]; then
         q_gpu=$((jj+j+myp*q))
         q_core=$((root_cores[q_gpu]))
         offset=$(( (q_gpu>=size) ? 0 : 1))
-        for i in $(seq $((q_core+offset)) $((q_core+num_use_cores-1)))
+        for i in $(seq $((q_core+offset)) $((q_core+num_use_cores[q_gpu]-1)))
         do
           omp_places+=",{$i}"
         done
-        omp_num_threads=$((omp_num_threads+num_use_cores-offset))
-        places+=",{$((q_core+offset))-$((q_core+num_use_cores-1))}"
+        omp_num_threads=$((omp_num_threads+num_use_cores[q_gpu]-offset))
+        places+=",{$((q_core+offset))-$((q_core+num_use_cores[q_gpu]-1))}"
       done
     done
   fi
