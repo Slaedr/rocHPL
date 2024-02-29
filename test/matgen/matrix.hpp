@@ -6,7 +6,7 @@
 
 namespace test {
 
-int HPL_host_pdmat_init(const HPL_T_grid* GRID, int N, int NB, HPL_T_pmat *mat);
+int HPL_host_pdmat_init(const HPL_T_grid* GRID, int nrows, int ncols, int NB, HPL_T_pmat *mat);
 
 void HPL_host_matfree(HPL_T_pmat *mat);
 

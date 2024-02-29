@@ -94,6 +94,7 @@ Q=1
 p=-1
 q=-1
 N=45312
+ncols=$N
 NB=384
 frac=0.6
 proc_grid_layout=COLUMN_MAJOR
@@ -109,6 +110,7 @@ trace_output_path="."
 num_ranks_traced=1
 use_repeats=false
 nrepeats=20
+use_ncols=false
 
 filename=HPL.dat
 inputfile=false
@@ -127,7 +129,7 @@ oversubscribe=true
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version,process_grid_layout:,output_file:,program:,use_mpi_lbcast,use_mpi_allreduce_dmxswp,use_mpi_scatterv,use_mpi_allgatherv,rocprof,hpct,trace_output_path:,num_ranks_traced:,nrepeats:,core_spec: --options hP:Q:p:q:N:i:f:o:S: -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version,process_grid_layout:,output_file:,program:,use_mpi_lbcast,use_mpi_allreduce_dmxswp,use_mpi_scatterv,use_mpi_allgatherv,rocprof,hpct,trace_output_path:,num_ranks_traced:,nrepeats:,core_spec:,num_global_cols: --options hP:Q:p:q:N:i:f:o:S: -- "$@")
 else
   echo "Need a new version of getopt"
   exit 1
@@ -169,6 +171,10 @@ while true; do
     --NB)
         NB=${2}
         cmdrun=true
+        shift 2 ;;
+    --num_global_cols)
+        ncols=${2}
+        use_ncols=true
         shift 2 ;;
     -f)
         frac=${2}
@@ -509,6 +515,9 @@ fi
 
 if [[ "${use_repeats}" == true ]]; then
     rochpl_args+=" --nrepeats ${nrepeats}"
+fi
+if [[ "${use_ncols}" == true ]]; then
+    rochpl_args+=" --num_global_cols ${ncols}"
 fi
 
 this_rank_rocprof=false

@@ -68,9 +68,7 @@ void HPL_pdfact(HPL_T_panel* PANEL, const HPL_Comm_impl_type allreduce_type) {
    * ---------------------------------------------------------------------
    */
 
-  int jb, i;
-
-  jb = PANEL->jb;
+  const int jb = PANEL->jb;
   PANEL->n -= jb;
   PANEL->ja += jb;
 

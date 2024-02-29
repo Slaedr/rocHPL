@@ -58,7 +58,7 @@
 
 namespace test {
 
-int HPL_host_pdmat_init(const HPL_T_grid* GRID, const int N, const int NB,
+int HPL_host_pdmat_init(const HPL_T_grid* GRID, const int N, const int ncols, const int NB,
                         HPL_T_pmat *const mat)
 {
     int mycol, myrow, npcol, nprow, info[3];
@@ -68,7 +68,7 @@ int HPL_host_pdmat_init(const HPL_T_grid* GRID, const int N, const int NB,
     mat->nb   = NB;
     mat->info = 0;
     mat->mp   = HPL_numroc(N, NB, NB, myrow, 0, nprow);
-    const int nq = HPL_numroc(N, NB, NB, mycol, 0, npcol);
+    const int nq = HPL_numroc(ncols, NB, NB, mycol, 0, npcol);
     /*
      * Allocate matrix, right-hand-side, and vector solution x. [ A | b ] is
      * N by N+1.  One column is added in every process column for the solve.
@@ -90,22 +90,15 @@ int HPL_host_pdmat_init(const HPL_T_grid* GRID, const int N, const int NB,
     /*
      * Allocate dynamic memory
      */
-    const size_t numbytes = ((size_t)(mat->ld) * (size_t)(mat->nq)) * sizeof(double);
+    const size_t numbytes = (size_t)(mat->ld) * (size_t)(mat->nq) * sizeof(double);
 
-#ifdef HPL_VERBOSE_PRINT
     if((myrow == 0) && (mycol == 0)) {
+        printf("Global matrix rows = %d, matrix cols = %d.\n", N, ncols);
         printf("Local matrix size = %g GBs\n",
                ((double)numbytes) / (1024 * 1024 * 1024));
     }
-#endif
 
-    int Anp;
-    Mnumroc(Anp, mat->n, mat->nb, mat->nb, myrow, 0, nprow);
-
-    /*Need space for a column of panels for pdfact on CPU*/
-    const size_t A_hostsize = mat->ld * mat->nb * sizeof(double);
-
-    if(HPL_malloc((void**)&(mat->A), A_hostsize) != HPL_SUCCESS) {
+    if(HPL_malloc((void**)&(mat->A), numbytes) != HPL_SUCCESS) {
         HPL_pwarn(stdout,
                   __LINE__, "HPL_pdmatgen", "[%d,%d] %s",
                   info[1],
@@ -132,6 +125,12 @@ int HPL_host_pdmat_init(const HPL_T_grid* GRID, const int N, const int NB,
         }
     }
 
+    int Anp;
+    Mnumroc(Anp, mat->n, mat->nb, mat->nb, myrow, 0, nprow);
+    if(Anp != mat->mp) {
+        std::printf("ERROR!! Anp != mp!\n"); fflush(stdout);
+    }
+
     size_t dworkspace_size = 0;
     size_t workspace_size  = 0;
 
@@ -144,6 +143,12 @@ int HPL_host_pdmat_init(const HPL_T_grid* GRID, const int N, const int NB,
         Mmax((nq + mat->nb + 256) * mat->nb * sizeof(double), dworkspace_size);
     workspace_size =
         Mmax((nq + mat->nb + 256) * mat->nb * sizeof(double), workspace_size);
+
+    if((myrow == 0) && (mycol == 0)) {
+        printf("Local matrix workspace size = %g GBs\n",
+               ((double)workspace_size) / (1024 * 1024 * 1024));
+    }
+
     if(HPL_malloc((void**)&(mat->W), workspace_size) != HPL_SUCCESS) {
         HPL_pwarn(stdout,
                   __LINE__, "HPL_pdmatgen", "[%d,%d] %s",
@@ -170,7 +175,7 @@ void HPL_host_matfree(HPL_T_pmat *const mat)
 
 void generate_random_values_host(HPL_T_pmat *const mat, const int seed)
 {
-    matgen::HPL_dmatgen(mat->mp, mat->nb, mat->A, mat->ld, seed);
+    matgen::HPL_dmatgen(mat->mp, mat->nq, mat->A, mat->ld, seed);
 }
 
 mat_diff compare_matrices_host(const HPL_T_pmat *m1, const HPL_T_pmat *m2, const double reltol)

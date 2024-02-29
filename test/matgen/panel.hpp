@@ -6,7 +6,7 @@
 namespace test {
 
 void allocate_host_panel(const HPL_T_grid *grid, const HPL_T_palg *algo, HPL_T_pmat *mat,
-                         int nrows, int gl_trailing_ncols, int ncols,
+                         int nrows, int gl_trailing_ncols, int panel_width,
                          int gl_start_row, int gl_start_col,
                          HPL_T_panel *panel);
 

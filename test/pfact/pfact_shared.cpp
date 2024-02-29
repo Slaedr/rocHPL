@@ -50,15 +50,15 @@ int main(int argc, char *argv[])
     algo2.pffun = HPL_pdpanrlN;
 
     HPL_T_pmat mat1, mat2;
-    HPL_host_pdmat_init(&grid, nrows, ncols, &mat1);
+    HPL_host_pdmat_init(&grid, nrows, nrows, bs, &mat1);
     generate_random_values_host(&mat1, seed);
-    HPL_host_pdmat_init(&grid, nrows, ncols, &mat2);
+    HPL_host_pdmat_init(&grid, nrows, nrows, bs, &mat2);
     generate_random_values_host(&mat2, seed);
     test_mat_same_host(&mat1, &mat2, 2.2e-16);
 
     HPL_T_panel panel1, panel2;
-    allocate_host_panel(&grid, &algo1, &mat1, nrows, ncols, ncols, 0, 0, &panel1);
-    allocate_host_panel(&grid, &algo2, &mat2, nrows, ncols, ncols, 0, 0, &panel2);
+    allocate_host_panel(&grid, &algo1, &mat1, nrows, ncols, bs, 0, 0, &panel1);
+    allocate_host_panel(&grid, &algo2, &mat2, nrows, ncols, bs, 0, 0, &panel2);
 
     test_shared_pdrpanrlN(&panel1, &panel2);
 

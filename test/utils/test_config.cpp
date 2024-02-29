@@ -47,15 +47,24 @@ namespace test {
 //     }
 // }
 
-extra_params get_extra_params(const int argc, char *argv[])
+extra_params get_extra_params(const int argc, char *argv[], const HPL_Test_params *const tparams)
 {
     extra_params params;
     params.nrepeats = 20;
+    if(tparams) {
+        params.n_gl_cols = tparams->matrix_sizes[0];
+    } else {
+        params.n_gl_cols = 0;
+    }
 
     for(int i = 1; i < argc; i++) {
         const std::string option = argv[i];
         if(option == "--nrepeats") {
             params.nrepeats = std::stoi(argv[i+1]);
+            i++;
+        }
+        if(option == "--num_global_cols") {
+            params.n_gl_cols = std::stoi(argv[i+1]);
             i++;
         }
     }

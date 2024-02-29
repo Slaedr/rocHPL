@@ -47,6 +47,8 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
     const int mp = HPL_numrocI(nrows, gl_start_row, nb, nb, myrow, 0, nprow);
     const int nq = HPL_numrocI(gl_trailing_ncols, gl_start_col, nb, nb, mycol, 0, npcol);
 
+    //printf("Host panel: Proc-col %d: nq = %d.\n", mycol, nq); //fflush(stdout);
+
     const int inxtcol = MModAdd1(icurcol, npcol);
     const int inxtrow = MModAdd1(icurrow, nprow);
 
@@ -138,6 +140,8 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
      * L2 (when it exist) so that one can receive a contiguous buffer.
      */
 
+    size_t total_panel_alloc = 0;
+
     /*Split fraction*/
     const double fraction = algo->frac;
 
@@ -153,6 +157,7 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
                    "HPL_pdpanel_init",
                    "Host memory allocation failed for L workspace.");
       }
+      total_panel_alloc += numbytes;
 
       panel->max_lwork_size = (size_t)(psz.lwork) * sizeof(double);
     }
@@ -164,6 +169,7 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
                    "HPL_pdpanel_init",
                    "Host memory allocation failed for U workspace.");
       }
+      total_panel_alloc += numbytes;
 
       panel->max_uwork_size = (size_t)(psz.uwork) * sizeof(double);
     }
@@ -184,6 +190,7 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
                    "HPL_pdpanel_init",
                    "Host memory allocation failed for integer workspace.");
       }
+      total_panel_alloc += numbytes;
       panel->max_iwork_size = psz.l_i_work * sizeof(int);
     }
 
@@ -200,7 +207,14 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
                    "HPL_pdpanel_init",
                    "Host memory allocation failed for pdfact scratch workspace.");
       }
+      total_panel_alloc += numbytes;
       panel->max_fwork_size = psz.l_f_work * sizeof(double);
+    }
+
+    if((myrow == 0) && (mycol == 0)) {
+        printf("Global panel sizes: %d x %d.\n", nrows, gl_trailing_ncols);
+        printf("Local panel workspaces size = %g GBs\n",
+               ((double)total_panel_alloc) / (1024 * 1024 * 1024));
     }
 }
 
