@@ -23,6 +23,63 @@
 #include <algorithm>
 #include <stdexcept>
 
+namespace {
+
+HPL_T_FACT str_to_fact_type(const std::string& fact_str)
+{
+    if(fact_str == "left_looking") {
+        return HPL_LEFT_LOOKING;
+    }
+    else if(fact_str == "crout") {
+        return HPL_CROUT;
+    }
+    else {
+      return HPL_RIGHT_LOOKING;
+    }
+}
+
+HPL_Test_params get_params_algo_defaults()
+{
+    HPL_Test_params params;
+    params.process_ordering = HPL_COLUMN_MAJOR;
+    params.panel_facts.resize(1);
+    params.panel_facts[0] = HPL_RIGHT_LOOKING;
+    params.recursive_facts.resize(1);
+    params.recursive_facts[0] = HPL_RIGHT_LOOKING;
+    params.recursive_stop_crit.resize(1);
+    params.recursive_stop_crit[0] = 16;
+    params.num_panels_recursion.resize(1);
+    params.num_panels_recursion[0] = 2;
+    params.bcast_algos.resize(1);
+    params.bcast_algos[0] = HPL_1RING;
+    params.lookahead_depths.resize(1);
+    params.lookahead_depths[0] = 1;
+    /*
+     * Swapping algorithm (0,1 or 2) (FSWAP)
+     */
+    params.fswap = HPL_SWAP01;
+    /*
+     * Swapping threshold (>=0) (TSWAP)
+     */
+    params.swap_threshold_cols = 64;
+    params.L1_no_transpose = true;
+    params.U_no_transpose = false;
+    params.equil = false;
+    /*
+     * Memory alignment in bytes (> 0) (ALIGN)
+     */
+    params.mem_align = 8;
+   
+    params.bcast_type = HPL_COMM_CUSTOM_IMPL;
+    params.allreduce_dmxswp_type = HPL_COMM_CUSTOM_IMPL;
+    params.allgatherv_type = HPL_COMM_CUSTOM_IMPL;
+    params.scatterv_type = HPL_COMM_CUSTOM_IMPL;
+
+    return params;
+}
+
+}
+
 HPL_Test_params HPL_pdinfo(int          ARGC,
                 char**       ARGV,
                 HPL_T_test*  TEST)
@@ -209,7 +266,8 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
   int*  iwork = NULL;
   char* lineptr;
   int   error = 0, fid, lwork, maxp, nprocs, rank, size;
-  HPL_Test_params params;
+
+  HPL_Test_params params = get_params_algo_defaults();
 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -398,6 +456,19 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
         params.scatterv_type = HPL_COMM_COLLECTIVE;
         use_mpi_scatterv = true;
     }
+    if(strcmp(ARGV[i], "--rfact_type") == 0) {
+      const std::string fact_type = ARGV[i + 1];
+      i++;
+      params.recursive_facts[0] = str_to_fact_type(fact_type);
+    }
+    if(strcmp(ARGV[i], "--pfact_type") == 0) {
+      const std::string fact_type = ARGV[i + 1];
+      i++;
+      params.panel_facts[0] = str_to_fact_type(fact_type);
+    }
+    if(strcmp(ARGV[i], "--use_l1_transpose") == 0) {
+      params.L1_no_transpose = false;
+    }
   }
 
   /*
@@ -489,6 +560,11 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
   params.loc_proc_rows = _p;
   params.loc_proc_cols = _q;
 
+  /*
+   * Compute and broadcast machine epsilon
+   */
+  TEST->epsil = HPL_pdlamch(MPI_COMM_WORLD, HPL_MACH_EPS);
+
   if(inputfile == false && cmdlinerun == true) {
     // We were given run paramters via the cmd line so skip
     // trying to read from an input file and just fill a
@@ -524,84 +600,43 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
      */
     nPFS = 1;
     PF[0] = HPL_RIGHT_LOOKING; // HPL_LEFT_LOOKING, HPL_CROUT;
-    params.panel_facts.resize(1);
-    params.panel_facts[0] = HPL_RIGHT_LOOKING;
     /*
      * Recursive stopping criterium (>=1) (NBM)
      */
     nBMS  = 1;
     NBM[0] = 16;
-    params.recursive_stop_crit.resize(1);
-    params.recursive_stop_crit[0] = 16;
     /*
      * Number of panels in recursion (>=2) (NDV)
      */
     nDVS  = 1;
     NDV[0] = 2;
-    params.num_panels_recursion.resize(1);
-    params.num_panels_recursion[0] = 2;
     /*
      * Recursive panel factorization (RF)
      */
     nRFS = 1;
     RF[0] = HPL_RIGHT_LOOKING; // HPL_LEFT_LOOKING, HPL_CROUT;
-    params.recursive_facts.resize(1);
-    params.recursive_facts[0] = HPL_RIGHT_LOOKING;
     /*
      * Broadcast topology (TP) (0=rg, 1=2rg, 2=rgM, 3=2rgM, 4=L)
      */
     nTPS = 1;
     TP[0] = HPL_1RING;
-    params.bcast_algos.resize(1);
-    params.bcast_algos[0] = HPL_1RING;
-   
-    if(!use_mpi_lbcast) 
-        params.bcast_type = HPL_COMM_CUSTOM_IMPL;
-    if(!use_mpi_allreduce_dmxswp)
-        params.allreduce_dmxswp_type = HPL_COMM_CUSTOM_IMPL;
-    if(!use_mpi_allgatherv)
-        params.allgatherv_type = HPL_COMM_CUSTOM_IMPL;
-    if(!use_mpi_scatterv)
-        params.scatterv_type = HPL_COMM_CUSTOM_IMPL;
     /*
      * Lookahead depth (>=0) (NDH)
      */
     nDHS = 1;
     DH[0] = 1;
-    params.lookahead_depths.resize(1);
-    params.lookahead_depths[0] = 1;
-    /*
-     * Swapping algorithm (0,1 or 2) (FSWAP)
-     */
-    params.fswap = HPL_SWAP01;
-    /*
-     * Swapping threshold (>=0) (TSWAP)
-     */
-    params.swap_threshold_cols = 64;
     /*
      * L1 in (no-)transposed form (0 or 1)
      */
     L1NOTRAN = 1;
-    params.L1_no_transpose = true;
     /*
      * U  in (no-)transposed form (0 or 1)
      */
     UNOTRAN = 0;
-    params.U_no_transpose = false;
     /*
      * Equilibration (0=no, 1=yes)
      */
     EQUIL = 0;
-    params.equil = false;
-    /*
-     * Memory alignment in bytes (> 0) (ALIGN)
-     */
-    params.mem_align = 8;
-
-    /*
-     * Compute and broadcast machine epsilon
-     */
-    TEST->epsil = HPL_pdlamch(MPI_COMM_WORLD, HPL_MACH_EPS);
 
     if(rank == 0) {
       if((TEST->outfp = fopen(outfile_path.c_str(), "w")) == NULL) { error = 1; }
@@ -1149,10 +1184,6 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
       MPI_Finalize();
       exit(1);
     }
-    /*
-     * Compute and broadcast machine epsilon
-     */
-    TEST->epsil = HPL_pdlamch(MPI_COMM_WORLD, HPL_MACH_EPS);
     /*
      * Pack information arrays and broadcast
      */

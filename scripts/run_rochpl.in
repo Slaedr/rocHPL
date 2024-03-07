@@ -104,6 +104,9 @@ use_mpi_lbcast=false
 use_mpi_allreduce_dmxswp=false
 use_mpi_scatterv=false
 use_mpi_allgatherv=false
+pfact_type=RIGHT_LOOKING
+rfact_type=RIGHT_LOOKING
+use_l1_transpose=false
 rocprof_trace_run=false
 hpct_trace_run=false
 trace_output_path="."
@@ -129,7 +132,7 @@ oversubscribe=true
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version,process_grid_layout:,output_file:,program:,use_mpi_lbcast,use_mpi_allreduce_dmxswp,use_mpi_scatterv,use_mpi_allgatherv,rocprof,hpct,trace_output_path:,num_ranks_traced:,nrepeats:,core_spec:,num_global_cols: --options hP:Q:p:q:N:i:f:o:S: -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version,process_grid_layout:,output_file:,program:,use_mpi_lbcast,use_mpi_allreduce_dmxswp,use_mpi_scatterv,use_mpi_allgatherv,pfact_type:,rfact_type:,use_l1_transpose,rocprof,hpct,trace_output_path:,num_ranks_traced:,nrepeats:,core_spec:,num_global_cols: --options hP:Q:p:q:N:i:f:o:S: -- "$@")
 else
   echo "Need a new version of getopt"
   exit 1
@@ -201,6 +204,15 @@ while true; do
         shift ;;
     --use_mpi_allgatherv)
         use_mpi_allgatherv=true
+        shift ;;
+    --pfact_type)
+        pfact_type=${2}
+        shift 2 ;;
+    --rfact_type)
+        rfact_type=${2}
+        shift 2 ;;
+    --use_l1_transpose)
+        use_l1_transpose=true
         shift ;;
     --rocprof)
         rocprof_trace_run=true
@@ -489,7 +501,7 @@ if [[ $globalRank -lt $size ]]; then
   echo "  OpenMP places: $OMP_PLACES"
 fi
 
-rochpl_args="-P ${P} -Q ${Q} -p ${p} -q ${q} -f ${frac}"
+rochpl_args="-P ${P} -Q ${Q} -p ${p} -q ${q} -f ${frac} --pfact_type ${pfact_type} --rfact_type ${rfact_type}"
 if [[ "${inputfile}" == true ]]; then
   rochpl_args+=" -i ${filename}"
 else
@@ -511,6 +523,9 @@ if [[ "${use_mpi_scatterv}" == true ]]; then
 fi
 if [[ "${use_mpi_allgatherv}" == true ]]; then
     rochpl_args+=" --use_mpi_allgatherv"
+fi
+if [[ "${use_l1_transpose}" == true ]]; then
+    rochpl_args+=" --use_l1_transpose"
 fi
 
 if [[ "${use_repeats}" == true ]]; then
