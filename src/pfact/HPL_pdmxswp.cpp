@@ -79,13 +79,13 @@ void HPL_pdmxswp(HPL_T_panel* PANEL,
   HPL_ptimer(HPL_TIMING_MXSWP);
 #endif
 
-  HPL_T_grid *grid = PANEL->grid;
+  const HPL_T_grid *grid = PANEL->grid;
   MPI_Comm    comm = grid->col_comm;
-  int NB      = PANEL->nb;
-  int icurrow = PANEL->prow;
+  const int NB      = PANEL->nb;
+  const int icurrow = PANEL->prow;
 
-  int cnt0 = 4 + 2 * NB;
-  double* Wwork = WORK + cnt0;
+  const int cnt0 = 4 + 2 * NB;
+  double *const Wwork = WORK + cnt0;
 
   /* Perform swap-broadcast */
   HPL_all_reduce_dmxswp(WORK, cnt0, icurrow, comm, Wwork, comm_type);

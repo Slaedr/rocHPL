@@ -125,7 +125,7 @@ void HPL_pdpanrlN(HPL_T_panel* PANEL,
    * Swap and broadcast the current row
    */
   if(thread_rank == 0) {
-    HPL_pdmxswp(PANEL, m, ii, jj, WORK);
+    HPL_pdmxswp(PANEL, m, ii, jj, WORK, comm_type);
 
     /*
      * Replicated copy of the current (new) row of A into L1
@@ -224,7 +224,7 @@ void HPL_pdpanrlN(HPL_T_panel* PANEL,
       }
 
       // Swap
-      HPL_pdmxswp(PANEL, m, iip1, jj+1, WORK);
+      HPL_pdmxswp(PANEL, m, iip1, jj+1, WORK, comm_type);
 
       /*
        * Replicated copy of the current (new) row of A into L1
