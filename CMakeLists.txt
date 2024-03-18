@@ -124,19 +124,6 @@ if(HPL_BUILD_TESTS)
     add_subdirectory(test)
 endif()
 
-# Configure run scripts
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_rochpl.in"
-                "${CMAKE_BINARY_DIR}/run_rochpl"
-                @ONLY)
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scripts/mpirun_rochpl.in"
-                "${CMAKE_BINARY_DIR}/mpirun_rochpl"
-                @ONLY)
-#move input file
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/HPL.dat
-        DESTINATION ${CMAKE_BINARY_DIR})
-install(PROGRAMS ${CMAKE_BINARY_DIR}/run_rochpl ${CMAKE_BINARY_DIR}/mpirun_rochpl
-        DESTINATION ${CMAKE_INSTALL_PREFIX})
-
 if(NOT HPL_BUILD_WITHOUT_HIP)
     # HPL sources
     file(GLOB_RECURSE rochpl_source RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.cpp")
@@ -303,3 +290,16 @@ if(NOT HPL_BUILD_WITHOUT_HIP)
       DESCRIPTION "Radeon Open Compute HPL application"
       MAINTAINER "Noel Chalmers")
 endif()
+
+# Configure run scripts
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_rochpl.in"
+                "${CMAKE_BINARY_DIR}/run_rochpl"
+                @ONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scripts/mpirun_rochpl.in"
+                "${CMAKE_BINARY_DIR}/mpirun_rochpl"
+                @ONLY)
+#move input file
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/scripts/HPL.dat
+        DESTINATION ${CMAKE_BINARY_DIR})
+install(PROGRAMS ${CMAKE_BINARY_DIR}/run_rochpl ${CMAKE_BINARY_DIR}/mpirun_rochpl
+        DESTINATION ${CMAKE_INSTALL_PREFIX})
