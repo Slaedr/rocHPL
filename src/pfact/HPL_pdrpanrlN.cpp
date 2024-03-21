@@ -109,6 +109,8 @@ void HPL_pdrpanrlN(HPL_T_panel* PANEL,
   n       = N;
   nb = jb = ((((N + nbmin - 1) / nbmin) + nbdiv - 1) / nbdiv) * nbmin;
 
+  const int trsm_thread_size = 8;
+
   A     = PANEL->A;
   lda   = PANEL->lda;
   L1    = PANEL->L1;
@@ -143,20 +145,33 @@ void HPL_pdrpanrlN(HPL_T_panel* PANEL,
                   max_value,
                   max_index, comm_type);
 
-    if(thread_rank == 0) {
-      HPL_dtrsm(HplColumnMajor,
-                HplLeft,
-                HplLower,
-                HplNoTrans,
-                HplUnit,
-                jb,
-                n,
-                HPL_rone,
-                Mptr(L1ptr, jj, jj, n0),
-                n0,
-                Mptr(L1ptr, jj, jj + jb, n0),
-                n0);
-    }
+    //if(thread_rank == 0) {
+    //  HPL_dtrsm(HplColumnMajor,
+    //            HplLeft,
+    //            HplLower,
+    //            HplNoTrans,
+    //            HplUnit,
+    //            jb,
+    //            n,
+    //            HPL_rone,
+    //            Mptr(L1ptr, jj, jj, n0),
+    //            n0,
+    //            Mptr(L1ptr, jj, jj + jb, n0),
+    //            n0);
+    //}
+
+    HPL_dtrsm_omp(HplColumnMajor, HplLeft, HplLower, HplNoTrans, HplUnit,
+            jb,
+            n,
+            HPL_rone,
+            Mptr(L1ptr, jj, jj, n0),
+            n0,
+            Mptr(L1ptr, jj, jj + jb, n0),
+            n0,
+            PANEL->nb,
+            thread_rank,
+            trsm_thread_size);
+
     if(curr != 0) {
       ii += jb;
       m -= jb;
