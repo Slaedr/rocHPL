@@ -109,8 +109,6 @@ void HPL_pdrpanrlN(HPL_T_panel* PANEL,
   n       = N;
   nb = jb = ((((N + nbmin - 1) / nbmin) + nbdiv - 1) / nbdiv) * nbmin;
 
-  const int trsm_thread_size = 8;
-
   A     = PANEL->A;
   lda   = PANEL->lda;
   L1    = PANEL->L1;
@@ -160,6 +158,10 @@ void HPL_pdrpanrlN(HPL_T_panel* PANEL,
     //            n0);
     //}
 
+    //const int omp_task_size = get_task_size(panel->nb, jb);
+    const int omp_task_size = 16;
+    const int trsm_thread_size = 8;
+
     HPL_dtrsm_omp(HplColumnMajor, HplLeft, HplLower, HplNoTrans, HplUnit,
             jb,
             n,
@@ -168,7 +170,7 @@ void HPL_pdrpanrlN(HPL_T_panel* PANEL,
             n0,
             Mptr(L1ptr, jj, jj + jb, n0),
             n0,
-            PANEL->nb,
+            omp_task_size,
             thread_rank,
             trsm_thread_size);
 
