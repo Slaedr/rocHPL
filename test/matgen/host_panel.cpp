@@ -211,11 +211,13 @@ void allocate_host_panel(const HPL_T_grid *const grid, const HPL_T_palg *const a
       panel->max_fwork_size = psz.l_f_work * sizeof(double);
     }
 
+#ifdef HPL_VERBOSE_PRINT
     if((myrow == 0) && (mycol == 0)) {
         printf("Global panel sizes: %d x %d.\n", nrows, gl_trailing_ncols);
         printf("Local panel workspaces size = %g GBs\n",
                ((double)total_panel_alloc) / (1024 * 1024 * 1024));
     }
+#endif
 }
 
 void free_host_panel(HPL_T_panel *const panel) {
