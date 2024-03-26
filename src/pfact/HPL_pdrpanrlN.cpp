@@ -160,7 +160,10 @@ void HPL_pdrpanrlN(HPL_T_panel* PANEL,
 
     //const int omp_task_size = get_task_size(panel->nb, jb);
     const int omp_task_size = 16;
-    const int trsm_thread_size = 8;
+    const int trsm_thread_size = 7;
+
+    // make sure the diagonal subblock factorization is completed
+#pragma omp barrier
 
     HPL_dtrsm_omp(HplColumnMajor, HplLeft, HplLower, HplNoTrans, HplUnit,
             jb,
