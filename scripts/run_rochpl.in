@@ -297,31 +297,33 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" ]]; then
   # GCD6 cores="32-39"
   # GCD7 cores="40-47"
 
-  root_cores=(48 56 16 24 0 8 32 40)
+  #root_cores=(48 56 16 24 0 8 32 40)
+  root_cores=(49 57 17 25 1 9 33 41)
+  num_use_cores=(7 7 7 7 7 7 7 7)
   root_core=${root_cores[mygpu]}
 
   # First omp place is the root core
   omp_places="{$root_core}"
 
   # First assign the CCD
-  for i in $(seq $((root_core+1)) $((root_core+8-1)))
+  for i in $(seq $((root_core+1)) $((root_core+num_use_cores[mygpu]-1)))
   do
     omp_places+=",{$i}"
   done
-  omp_num_threads=8
+  omp_num_threads=num_use_cores[mygpu]
 
-  places="{$root_core-$((root_core+7))}"
+  places="{$root_core-$((root_core+num_use_cores[mygpu]-1))}"
 
   # Loop through unassigned CCDs
   for c in $(seq $((mygpu+size)) $size 7)
   do
     iroot_core=${root_cores[c]}
-    for i in $(seq $((iroot_core)) $((iroot_core+8-1)))
+    for i in $(seq $((iroot_core)) $((iroot_core+num_use_cores[c]-1)))
     do
       omp_places+=",{$i}"
     done
-    omp_num_threads=$((omp_num_threads+8))
-    places+=",{$iroot_core-$((iroot_core+7))}"
+    omp_num_threads=$((omp_num_threads+num_use_cores[c]))
+    places+=",{$iroot_core-$((iroot_core+num_use_cores[c]-1))}"
   done
 
   if [[ "${oversubscribe}" == true ]]; then
@@ -336,12 +338,12 @@ if [[ "$platform" == "BardPeak" || "$platform" == "HPE_CRAY_EX235A" ]]; then
         q_gpu=$((jj+j+myp*q))
         q_core=$((root_cores[q_gpu]))
         offset=$(( (q_gpu>=size) ? 0 : 1))
-        for i in $(seq $((q_core+offset)) $((q_core+8-1)))
+        for i in $(seq $((q_core+offset)) $((q_core+num_use_cores[q_gpu]-1)))
         do
           omp_places+=",{$i}"
         done
-        omp_num_threads=$((omp_num_threads+8-offset))
-        places+=",{$((q_core+offset))-$((q_core+7))}"
+        omp_num_threads=$((omp_num_threads+num_use_cores[q_gpu]-offset))
+        places+=",{$((q_core+offset))-$((q_core+num_use_cores[q_gpu]-1))}"
       done
     done
   fi

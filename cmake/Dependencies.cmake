@@ -77,6 +77,13 @@ endif()
 # MPI
 set(MPI_HOME ${HPL_MPI_DIR})
 find_package(MPI REQUIRED)
+    
+string(SUBSTRING $ENV{PE_MPICH_GTL_DIR_amd_gfx90a} 2 -1 GTL_DIR)
+find_library(GTL_LIB mpi_gtl_hsa PATHS ${GTL_DIR})
+if(${GTL_LIB} STREQUAL "GTL_LIB-NOTFOUND")
+  message(SEND_ERROR "MPI and GPU-aware MPI were requested but GTL was not found!")
+endif()
+message(STATUS "GTL library found: ${GTL_LIB}")
 
 # Add some paths
 list(APPEND CMAKE_PREFIX_PATH ${ROCBLAS_PATH} ${ROCM_PATH})

@@ -160,6 +160,7 @@ target_link_libraries(rochpl PRIVATE BLAS::BLAS)
 target_link_libraries(rochpl PRIVATE roc::rocblas)
 target_link_libraries(rochpl PRIVATE roc::roctracer)
 target_link_libraries(rochpl PRIVATE roc::roctx)
+target_link_libraries(rochpl PRIVATE ${GTL_LIB})
 
 # Target properties
 set_target_properties(rochpl PROPERTIES VERSION ${rochpl_VERSION})
