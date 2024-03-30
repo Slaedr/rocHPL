@@ -45,7 +45,7 @@ int main(int ARGC, char** ARGV) {
   HPL_T_FACT  rpfa;
   HPL_T_SWAP  fswap;
   double      frac;
-  int         p, q;
+  int         p, q, cpu_trsm_work_size;
 
   MPI_Init(&ARGC, &ARGV);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -119,7 +119,8 @@ int main(int ARGC, char** ARGV) {
              &Unotran,
              &equil,
              &align,
-             &frac);
+             &frac,
+             &cpu_trsm_work_size);
 
   /*
    * Loop over different process grids - Define process grid. Go to bottom
@@ -201,6 +202,7 @@ int main(int ARGC, char** ARGV) {
                     algo.fsthr = tswap;
                     algo.equil = equil;
                     algo.align = align;
+                    algo.cpu_trsm_work_size = cpu_trsm_work_size;
 
                     algo.frac = frac;
 

@@ -65,6 +65,7 @@ typedef struct HPL_S_palg {
   int           depth; /* look-ahead depth */
   int           nbdiv; /* recursive division factor */
   int           nbmin; /* recursion stopping criterium */
+  int           cpu_trsm_work_size; // no. cols of work for each thread
   HPL_T_FACT    pfact; /* panel fact variant */
   HPL_T_FACT    rfact; /* recursive fact variant */
   HPL_T_PFA_FUN pffun; /* panel fact function ptr */

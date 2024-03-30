@@ -50,7 +50,8 @@ void HPL_pdinfo(int          ARGC,
                 int*         UNOTRAN,
                 int*         EQUIL,
                 int*         ALIGN,
-                double*      FRAC) {
+                double*      FRAC,
+                int*         CPU_TRSM_WORK_SIZE) {
   /*
    * Purpose
    * =======
@@ -223,6 +224,12 @@ void HPL_pdinfo(int          ARGC,
   int*  iwork = NULL;
   char* lineptr;
   int   error = 0, fid, i, j, lwork, maxp, nprocs, rank, size;
+  int cpu_trsm_work_size = 16;
+  /*
+   * Recursive stopping criterium (>=1) (NBM)
+   */
+  *NBMS  = 1;
+  NBM[0] = 16;
 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -241,6 +248,7 @@ void HPL_pdinfo(int          ARGC,
   bool        inputfile     = false;
   double      frac          = 0.6;
   std::string inputFileName = "HPL.dat";
+  std::string output_file = "HPL.out";
 
   for(int i = 1; i < ARGC; i++) {
     if(strcmp(ARGV[i], "-h") == 0 || strcmp(ARGV[i], "--help") == 0) {
@@ -371,7 +379,23 @@ void HPL_pdinfo(int          ARGC,
       inputfile     = true;
       i++;
     }
+    if(strcmp(ARGV[i], "-o") == 0 || strcmp(ARGV[i], "--ouput_file") == 0) {
+      output_file = ARGV[i + 1];
+      i++;
+    }
+    if(strcmp(ARGV[i], "--cpu_trsm_work_size") == 0) {
+      cpu_trsm_work_size = atoi(ARGV[i + 1]);
+      cmdlinerun = true;
+      i++;
+    }
+    if(strcmp(ARGV[i], "--nbmin") == 0) {
+      NBM[0] = atoi(ARGV[i + 1]);
+      cmdlinerun = true;
+      i++;
+    }
   }
+      
+  *CPU_TRSM_WORK_SIZE = cpu_trsm_work_size;
 
   /*
    * Check for enough processes in machine configuration
@@ -490,11 +514,6 @@ void HPL_pdinfo(int          ARGC,
     *NPFS = 1;
     PF[0] = HPL_RIGHT_LOOKING; // HPL_LEFT_LOOKING, HPL_CROUT;
     /*
-     * Recursive stopping criterium (>=1) (NBM)
-     */
-    *NBMS  = 1;
-    NBM[0] = 16;
-    /*
      * Number of panels in recursion (>=2) (NDV)
      */
     *NDVS  = 1;
@@ -545,7 +564,7 @@ void HPL_pdinfo(int          ARGC,
     TEST->epsil = HPL_pdlamch(MPI_COMM_WORLD, HPL_MACH_EPS);
 
     if(rank == 0) {
-      if((TEST->outfp = fopen("HPL.out", "w")) == NULL) { error = 1; }
+      if((TEST->outfp = fopen(output_file.c_str(), "w")) == NULL) { error = 1; }
     }
     (void)HPL_all_reduce((void*)(&error), 1, HPL_INT, HPL_MAX, MPI_COMM_WORLD);
     if(error) {

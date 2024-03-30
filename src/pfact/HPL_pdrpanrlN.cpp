@@ -142,20 +142,40 @@ void HPL_pdrpanrlN(HPL_T_panel* PANEL,
                   max_value,
                   max_index);
 
-    if(thread_rank == 0) {
-      HPL_dtrsm(HplColumnMajor,
-                HplLeft,
-                HplLower,
-                HplNoTrans,
-                HplUnit,
-                jb,
-                n,
-                HPL_rone,
-                Mptr(L1ptr, jj, jj, n0),
-                n0,
-                Mptr(L1ptr, jj, jj + jb, n0),
-                n0);
-    }
+    //if(thread_rank == 0) {
+    //  HPL_dtrsm(HplColumnMajor,
+    //            HplLeft,
+    //            HplLower,
+    //            HplNoTrans,
+    //            HplUnit,
+    //            jb,
+    //            n,
+    //            HPL_rone,
+    //            Mptr(L1ptr, jj, jj, n0),
+    //            n0,
+    //            Mptr(L1ptr, jj, jj + jb, n0),
+    //            n0);
+    //}
+
+#pragma omp barrier
+
+    HPL_dtrsm_omp(HplColumnMajor,
+              HplLeft,
+              HplLower,
+              HplNoTrans,
+              HplUnit,
+              jb,
+              n,
+              HPL_rone,
+              Mptr(L1ptr, jj, jj, n0),
+              n0,
+              Mptr(L1ptr, jj, jj + jb, n0),
+              n0,
+              PANEL->algo->cpu_trsm_work_size,
+              thread_rank,
+              thread_size
+              );
+
     if(curr != 0) {
       ii += jb;
       m -= jb;

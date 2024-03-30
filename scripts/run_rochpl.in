@@ -94,9 +94,13 @@ q=-1
 N=45312
 NB=384
 frac=0.6
+cpu_trsm_work_size=16
+nbmin=16
 
 filename=HPL.dat
 inputfile=false
+outputfilegiven=false
+output_file=HPL.out
 cmdrun=false
 
 export LD_LIBRARY_PATH=${rocblas_dir}:${blas_dir}:${rocm_dir}/lib:$LD_LIBRARY_PATH
@@ -110,7 +114,7 @@ oversubscribe=true
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version, --options hP:Q:p:q:N:i:f: -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version,output_file:,cpu_trsm_work_size:,nmbin: --options hP:Q:p:q:N:i:f:o: -- "$@")
 else
   echo "Need a new version of getopt"
   exit 1
@@ -159,6 +163,18 @@ while true; do
     -i)
         filename=${2}
         inputfile=true
+        shift 2 ;;
+    -o|--output_file)
+        output_file=${2}
+        outputfilegiven=true
+        shift 2 ;;
+    --cpu_trsm_work_size)
+        cpu_trsm_work_size=${2}
+        cmdrun=true
+        shift 2 ;;
+    --nbmin)
+        nbmin=${2}
+        cmdrun=true
         shift 2 ;;
     --) shift ; break ;;
     *)  echo "Unexpected command line parameter received; aborting";
@@ -401,11 +417,15 @@ if [[ $globalRank -lt $size ]]; then
   echo "Node Binding: Process $rank [(p,q)=($myp,$myq)] CPU Cores: $omp_num_threads - $places"
 fi
 
-rochpl_args="-P ${P} -Q ${Q} -p ${p} -q ${q} -f ${frac}"
+rochpl_args="-P ${P} -Q ${Q} -p ${p} -q ${q} -f ${frac} --cpu_trsm_work_size ${cpu_trsm_work_size} --nbmin ${nbmin}"
 if [[ "${inputfile}" == true ]]; then
   rochpl_args+=" -i ${filename}"
 else
   rochpl_args+=" -N ${N} -NB ${NB}"
+fi
+
+if [[ "${outputfilegiven}" == true ]]; then
+  rochpl_args+=" -o ${output_file}"
 fi
 
 #run
