@@ -63,3 +63,61 @@ void HPL_idamax_omp(const int     N,
     }
   }
 }
+
+void HPL_idamax_omp_exclude0(const int     N,
+                    const double* X,
+                    const int     INCX,
+                    const int     NB,
+                    const int     II,
+                    const int     thread_rank,
+                    const int     thread_size,
+                    int*          max_index,
+                    double*       max_value) {
+
+  max_index[thread_rank] = 0;
+  max_value[thread_rank] = 0.0;
+
+  if(N < 1) return;
+
+  if (thread_size==1) {
+
+    max_index[0] = HPL_idamax(N, X, INCX);
+    max_value[0] = X[max_index[0] * INCX];
+
+  } else {
+
+    if (thread_rank>0) {
+      int tile = 0;
+      if(tile % (thread_size-1) == (thread_rank-1)) {
+        const int nn           = Mmin(NB - II, N);
+        max_index[thread_rank] = HPL_idamax(nn, X, INCX);
+        max_value[thread_rank] = X[max_index[thread_rank] * INCX];
+      }
+      ++tile;
+      int i = NB - II;
+      for(; i < N; i += NB) {
+        if(tile % (thread_size-1) == (thread_rank-1)) {
+          const int nn  = Mmin(NB, N - i);
+          const int idm = HPL_idamax(nn, X + i * INCX, INCX);
+          if(abs(X[(idm + i) * INCX]) > abs(max_value[thread_rank])) {
+            max_value[thread_rank] = X[(idm + i) * INCX];
+            max_index[thread_rank] = idm + i;
+          }
+        }
+        ++tile;
+      }
+    }
+
+    #pragma omp barrier
+
+    // finish reduction
+    if(thread_rank == 0) {
+      for(int rank = 1; rank < thread_size; ++rank) {
+        if(abs(max_value[rank]) > abs(max_value[0])) {
+          max_value[0] = max_value[rank];
+          max_index[0] = max_index[rank];
+        }
+      }
+    }
+  }
+}

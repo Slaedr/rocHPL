@@ -45,3 +45,43 @@ void HPL_dger_omp(const enum HPL_ORDER ORDER,
     ++tile;
   }
 }
+
+void HPL_dger_omp_exclude0(const enum HPL_ORDER ORDER,
+                  const int            M,
+                  const int            N,
+                  const double         ALPHA,
+                  const double*        X,
+                  const int            INCX,
+                  double*              Y,
+                  const int            INCY,
+                  double*              A,
+                  const int            LDA,
+                  const int            NB,
+                  const int            II,
+                  const int            thread_rank,
+                  const int            thread_size) {
+
+  if (thread_size==1) {
+
+    HPL_dger(ORDER, M, N, ALPHA, X, INCX, Y, INCY, A, LDA);
+
+  } else {
+
+    if (thread_rank==0) return;
+
+    int tile = 0;
+    if(tile % (thread_size-1) == (thread_rank-1)) {
+      const int mm = Mmin(NB - II, M);
+      HPL_dger(ORDER, mm, N, ALPHA, X, INCX, Y, INCY, A, LDA);
+    }
+    ++tile;
+    int i = NB - II;
+    for(; i < M; i += NB) {
+      if(tile % (thread_size-1) == (thread_rank-1)) {
+        const int mm = Mmin(NB, M - i);
+        HPL_dger(ORDER, mm, N, ALPHA, X + i * INCX, INCX, Y, INCY, A + i, LDA);
+      }
+      ++tile;
+    }
+  }
+}

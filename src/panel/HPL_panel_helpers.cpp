@@ -98,7 +98,7 @@ HPL_panel_sizes get_panel_sizes(HPL_T_pmat *A, const int M, const int N, const i
     psz.ldu = psz.nu + JB + 256; /*extra space for potential padding*/
     psz.uwork = JB * psz.ldu;
     psz.l_i_work = static_cast<size_t>(get_index_workspace_len(nprow, JB, mp));
-    psz.l_f_work = static_cast<size_t>(((4 + ((unsigned int)(JB) << 1)) << 1));
+    psz.l_f_work = static_cast<size_t>(((4 + ((unsigned int)(JB) << 1)) << 2));
 
     return psz;
 }
