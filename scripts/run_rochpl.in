@@ -114,6 +114,8 @@ num_ranks_traced=1
 use_repeats=false
 nrepeats=20
 use_ncols=false
+cpu_trsm_work_size=16
+nbmin=16
 
 filename=HPL.dat
 inputfile=false
@@ -132,7 +134,7 @@ oversubscribe=true
 # check if we have a modern version of getopt that can handle whitespace and long parameters
 getopt -T
 if [[ $? -eq 4 ]]; then
-  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version,process_grid_layout:,output_file:,program:,use_mpi_lbcast,use_mpi_allreduce_dmxswp,use_mpi_scatterv,use_mpi_allgatherv,pfact_type:,rfact_type:,use_l1_transpose,rocprof,hpct,trace_output_path:,num_ranks_traced:,nrepeats:,core_spec:,num_global_cols: --options hP:Q:p:q:N:i:f:o:S: -- "$@")
+  GETOPT_PARSE=$(getopt --name "${0}" --longoptions NB:,help,version,process_grid_layout:,output_file:,program:,use_mpi_lbcast,use_mpi_allreduce_dmxswp,use_mpi_scatterv,use_mpi_allgatherv,pfact_type:,rfact_type:,use_l1_transpose,rocprof,hpct,trace_output_path:,num_ranks_traced:,nrepeats:,core_spec:,num_global_cols:,cpu_trsm_work_size:,nbmin: --options hP:Q:p:q:N:i:f:o:S: -- "$@")
 else
   echo "Need a new version of getopt"
   exit 1
@@ -235,6 +237,12 @@ while true; do
         shift 2 ;;
     -S|--core_spec)
         core_spec=${2}
+        shift 2 ;;
+    --cpu_trsm_work_size)
+        cpu_trsm_work_size=${2}
+        shift 2 ;;
+    --nbmin)
+        nbmin=${2}
         shift 2 ;;
     --) shift ; break ;;
     *)  echo "Unexpected command line parameter received; aborting";
@@ -502,6 +510,8 @@ if [[ $globalRank -lt $size ]]; then
 fi
 
 rochpl_args="-P ${P} -Q ${Q} -p ${p} -q ${q} -f ${frac} --pfact_type ${pfact_type} --rfact_type ${rfact_type}"
+rochpl_args+=" --cpu_trsm_work_size ${cpu_trsm_work_size} --nbmin ${nbmin}"
+
 if [[ "${inputfile}" == true ]]; then
   rochpl_args+=" -i ${filename}"
 else

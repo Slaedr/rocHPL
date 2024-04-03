@@ -19,6 +19,7 @@ function display_help()
   echo "    [--with-rocblas=<dir>] Path to rocBLAS library (Default: /opt/rocm/rocblas)"
   echo "    [--with-cpublas=<dir>] Path to external CPU BLAS library (Default: clone+build BLIS)"
   echo "    [--with-mpi=<dir>] Path to external MPI install (Default: clone+build OpenMPI)"
+  echo "    [--build-type=release|debug|relwithdebinfo|craypat] Type of build (Default: release)"
   echo "    [--verbose-print] Verbose output during HPL setup (Default: true)"
   echo "    [--progress-report] Print progress report to terminal during HPL run (Default: true)"
   echo "    [--detailed-timing] Record detailed timers during HPL run (Default: true)"
@@ -108,7 +109,7 @@ install_blis( )
 {
   if [ ! -d "./tpl/${1}/blis" ]; then
     mkdir -p tpl/$1 && cd tpl/$1
-    git clone https://github.com/amd/blis --branch 4.0
+    git clone https://github.com/amd/blis --branch 4.1
     check_exit_code 2
     cd blis; ./configure --prefix=${PWD} --enable-cblas --disable-sup-handling auto;
     check_exit_code 2

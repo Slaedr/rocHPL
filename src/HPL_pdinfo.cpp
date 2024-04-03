@@ -50,6 +50,7 @@ HPL_Test_params get_params_algo_defaults()
     params.recursive_stop_crit[0] = 16;
     params.num_panels_recursion.resize(1);
     params.num_panels_recursion[0] = 2;
+    params.cpu_trsm_work_size = 16;
     params.bcast_algos.resize(1);
     params.bcast_algos[0] = HPL_1RING;
     params.lookahead_depths.resize(1);
@@ -330,7 +331,9 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
                "--use_mpi_lbcast                   Use MPI collective for panel broadcast.\n"
                "--use_mpi_allreduce_dmxswp         Use MPI collective for allreduce in pivoting.\n"
                "--use_mpi_scatterv                 Use MPI collective for scatter during row swaps.\n"
-               "--use_mpi_allgatherv               Use MPI collective for all-gather during row swaps.\n";
+               "--use_mpi_allgatherv               Use MPI collective for all-gather during row swaps.\n"
+               "--cpu_trsm_work_size               Num cols of RHS that each CPU thread computes.\n"
+               "--nbmin                            Smallest sub-block size in CPU panel factorization.\n";
       }
       MPI_Barrier(MPI_COMM_WORLD);
       MPI_Finalize();
@@ -468,6 +471,16 @@ HPL_Test_params HPL_pdinfo(int          ARGC,
     }
     if(strcmp(ARGV[i], "--use_l1_transpose") == 0) {
       params.L1_no_transpose = false;
+    }
+    if(strcmp(ARGV[i], "--cpu_trsm_work_size") == 0) {
+      params.cpu_trsm_work_size = atoi(ARGV[i + 1]);
+      cmdlinerun = true;
+      i++;
+    }
+    if(strcmp(ARGV[i], "--nbmin") == 0) {
+      params.recursive_stop_crit[0] = atoi(ARGV[i + 1]);
+      cmdlinerun = true;
+      i++;
     }
   }
 

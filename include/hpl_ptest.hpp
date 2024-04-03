@@ -91,12 +91,14 @@ struct HPL_Test_params {
     int loc_proc_cols;
     /// Panel factorizations to run, PF
     std::vector<HPL_T_FACT> panel_facts;
-    /// Recursive stopping criteria, NBM
+    /// Recursive stopping criteria, NBMIN
     std::vector<int> recursive_stop_crit;
     /// Numbers of panels in recursion, NDV
     std::vector<int> num_panels_recursion;
     /// Recursive factorization algorithms, RF
     std::vector<HPL_T_FACT> recursive_facts;
+    /// No. of RHS columns that each CPU thread processes
+    int cpu_trsm_work_size;
     /** Broadcast algorithms, TP
      * This is only used if \ref bcast_type is HPL_COMM_CUSTOM_IMPL.
      */
