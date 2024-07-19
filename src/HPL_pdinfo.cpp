@@ -241,6 +241,7 @@ void HPL_pdinfo(int          ARGC,
   bool        inputfile     = false;
   double      frac          = 0.6;
   std::string inputFileName = "HPL.dat";
+  std::string outfile_path{"HPL.out"};
 
   for(int i = 1; i < ARGC; i++) {
     if(strcmp(ARGV[i], "-h") == 0 || strcmp(ARGV[i], "--help") == 0) {
@@ -277,7 +278,8 @@ void HPL_pdinfo(int          ARGC,
                "-h  [ --help ]                     Produces this help "
                "message                 \n"
                "--version                          Prints the version "
-               "number                  \n";
+               "number                  \n"
+               "-o [ --output_file ]               Name of output file [HPL.out]\n";
       }
       MPI_Barrier(MPI_COMM_WORLD);
       MPI_Finalize();
@@ -369,6 +371,10 @@ void HPL_pdinfo(int          ARGC,
     if(strcmp(ARGV[i], "-i") == 0 || strcmp(ARGV[i], "--input") == 0) {
       inputFileName = ARGV[i + 1];
       inputfile     = true;
+      i++;
+    }
+    if(strcmp(ARGV[i], "-o") == 0 || strcmp(ARGV[i], "--output_file") == 0) {
+      outfile_path = ARGV[i + 1];
       i++;
     }
   }
@@ -545,7 +551,7 @@ void HPL_pdinfo(int          ARGC,
     TEST->epsil = HPL_pdlamch(MPI_COMM_WORLD, HPL_MACH_EPS);
 
     if(rank == 0) {
-      if((TEST->outfp = fopen("HPL.out", "w")) == NULL) { error = 1; }
+      if((TEST->outfp = fopen(outfile_path.c_str(), "w")) == NULL) { error = 1; }
     }
     (void)HPL_all_reduce((void*)(&error), 1, HPL_INT, HPL_MAX, MPI_COMM_WORLD);
     if(error) {
